@@ -1,135 +1,54 @@
 import os
 import requests
-from datetime import datetime, timedelta, timezone
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
-BETFAIR_USERNAME = os.getenv("BETFAIR_USERNAME")
-BETFAIR_PASSWORD = os.getenv("BETFAIR_PASSWORD")
-BETFAIR_APP_KEY = os.getenv("BETFAIR_APP_KEY")
 
-LOGIN_URL = "https://identitysso.betfair.com.au/api/login"
-BETTING_URL = "https://api-au.betfair.com/exchange/betting/json-rpc/v1"
+SPORTSBET_URL = "https://www.sportsbet.com.au/racing-schedule/greyhound/today"
 
-def safe_json(response):
-    try:
-        return response.json()
-    except Exception:
-        raise RuntimeError(
-            f"Non-JSON response from Betfair.\n"
-            f"HTTP {response.status_code}\n"
-            f"Body preview:\n{response.text[:500]}"
-        )
-
-def betfair_login():
-    response = requests.post(
-        LOGIN_URL,
-        data=f"username={BETFAIR_USERNAME}&password={BETFAIR_PASSWORD}",
-        headers={
-            "X-Application": BETFAIR_APP_KEY,
-            "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        timeout=20,
-    )
-
-    data = safe_json(response)
-
-    if data.get("status") != "SUCCESS":
-        raise RuntimeError(f"Login failed:\n{data}")
-
-    return data["token"]
-
-def betfair_call(session_token, method, params):
-    payload = {
-        "jsonrpc": "2.0",
-        "method": f"SportsAPING/v1.0/{method}",
-        "params": params,
-        "id": 1,
+def test_sportsbet_access():
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
 
-    response = requests.post(
-        BETTING_URL,
-        json=payload,
-        headers={
-            "X-Application": BETFAIR_APP_KEY,
-            "X-Authentication": session_token,
-            "Content-Type": "application/json",
-        },
-        timeout=20,
-    )
+    response = requests.get(SPORTSBET_URL, headers=headers, timeout=20)
 
-    data = safe_json(response)
-
-    if "error" in data:
-        raise RuntimeError(f"API error:\n{data['error']}")
-
-    return data["result"]
-
-def get_greyhound_markets():
-    session = betfair_login()
-
-    now = datetime.now(timezone.utc)
-    tomorrow = now + timedelta(days=1)
-
-    return betfair_call(
-        session,
-        "listMarketCatalogue",
-        {
-            "filter": {
-                "eventTypeIds": ["4339"],
-                "marketCountries": ["AU"],
-                "marketStartTime": {
-                    "from": now.isoformat(),
-                    "to": tomorrow.isoformat(),
-                },
-                "marketTypeCodes": ["WIN"],
-            },
-            "maxResults": "10",
-            "marketProjection": ["EVENT", "RUNNER_DESCRIPTION", "MARKET_START_TIME"],
-            "sort": "FIRST_TO_START",
-        },
-    )
+    return {
+        "status": response.status_code,
+        "url": response.url,
+        "text_preview": response.text[:500],
+    }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🐕 Betfair Greyhound Scanner online.\n\nType /scan.")
+    await update.message.reply_text(
+        "🐕 Greyhound Scanner Bot online.\n\nType /scan to test Sportsbet access."
+    )
 
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Connecting to Betfair...")
+    await update.message.reply_text("Testing Sportsbet access...")
 
     try:
-        markets = get_greyhound_markets()
+        result = test_sportsbet_access()
 
-        if not markets:
-            await update.message.reply_text("No AU greyhound WIN markets found.")
-            return
-
-        msg = "🐕 Betfair Greyhound Markets\n\n"
-
-        for market in markets:
-            event = market.get("event", {})
-            venue = event.get("venue", "Unknown")
-            name = market.get("marketName", "Unknown")
-            start = market.get("marketStartTime", "")
-
-            runners = market.get("runners", [])
-            dogs = [r.get("runnerName", "Unknown") for r in runners[:4]]
-
-            msg += f"• {venue} — {name}\n"
-            msg += f"Start: {start}\n"
-            msg += f"Dogs: {', '.join(dogs)}...\n\n"
+        msg = (
+            "Sportsbet Access Test\n\n"
+            f"HTTP Status: {result['status']}\n"
+            f"Final URL: {result['url']}\n\n"
+            f"Preview:\n{result['text_preview']}"
+        )
 
         await update.message.reply_text(msg[:4000])
 
     except Exception as e:
-        await update.message.reply_text(f"Betfair scanner error:\n{e}")
+        await update.message.reply_text(f"Sportsbet test error:\n{e}")
 
 def main():
     if not TOKEN:
         raise RuntimeError("BOT_TOKEN missing")
 
-    print("🤖 Betfair Greyhound Scanner Started")
+    print("🤖 Sportsbet Greyhound Scanner Started")
 
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))

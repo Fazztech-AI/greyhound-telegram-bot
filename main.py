@@ -1,5 +1,4 @@
 import os
-import re
 import requests
 from bs4 import BeautifulSoup
 from telegram import Update
@@ -14,24 +13,31 @@ def get_meetings():
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
-    text = soup.get_text("\n", strip=True)
 
-    tracks = [
-        "Sandown", "The Meadows", "Ballarat", "Bendigo", "Geelong",
-        "Warragul", "Shepparton", "Traralgon", "Healesville",
-        "Horsham", "Sale", "Warrnambool", "Angle Park", "Albion Park",
-        "Wentworth Park", "Richmond", "Dapto", "Gosford",
-        "Cannington", "Mandurah", "Hobart", "Launceston", "Darwin",
-        "Ipswich", "Maitland", "Grafton", "Casino", "Dubbo",
-        "Gawler", "Murray Bridge", "Northam", "Townsville"
-    ]
+    meetings = []
 
-    found = []
-    for track in tracks:
-        if re.search(rf"\b{re.escape(track)}\b", text, re.IGNORECASE):
-            found.append(track)
+    for link in soup.find_all("a", href=True):
+        text = link.get_text(" ", strip=True)
+        href = link["href"]
 
-    return sorted(set(found))
+        if not text:
+            continue
+
+        if "/form-guides/" in href and len(text) < 40:
+            if href.startswith("/"):
+                href = "https://www.thegreyhoundrecorder.com.au" + href
+
+            meetings.append({
+                "name": text,
+                "url": href
+            })
+
+    # remove duplicates
+    unique = {}
+    for meeting in meetings:
+        unique[meeting["name"]] = meeting["url"]
+
+    return unique
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -39,23 +45,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Scanning live greyhound meetings...")
+    await update.message.reply_text("Scanning meeting links...")
 
     try:
         meetings = get_meetings()
 
         if not meetings:
-            await update.message.reply_text(
-                "No meetings found from this source. We may need another data source."
-            )
+            await update.message.reply_text("No meeting links found.")
             return
 
         msg = "🐕 Today’s Greyhound Meetings\n\n"
-        for meeting in meetings:
-            msg += f"• {meeting}\n"
 
-        msg += "\nNext step: pull races from each meeting."
-        await update.message.reply_text(msg)
+        for name, url in list(meetings.items())[:20]:
+            msg += f"• {name}\n{url}\n\n"
+
+        msg += "Next step: open each meeting and pull Race 1, Race 2, Race 3 etc."
+
+        await update.message.reply_text(msg[:4000])
 
     except Exception as e:
         await update.message.reply_text(f"Scanner error:\n{e}")

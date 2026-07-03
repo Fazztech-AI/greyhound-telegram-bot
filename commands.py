@@ -1,11 +1,20 @@
 import re
-from datetime import date
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bet_builder import build_best_bets_message, build_tracks_message, build_race_message
-from utils import parse_date_from_text, clean_track_text, chunk_message
+from bet_builder import (
+    build_best_bets_message,
+    build_tracks_message,
+    build_race_message,
+)
+
+from utils import (
+    parse_date_from_text,
+    clean_track_text,
+    chunk_message,
+    melbourne_today,
+)
 
 async def send_long(update: Update, text: str):
     for chunk in chunk_message(text):
@@ -34,7 +43,7 @@ async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def tracks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args).strip()
-    target_date = parse_date_from_text(text) if text else date.today()
+    target_date = parse_date_from_text(text) if text else melbourne_today()
 
     await update.message.reply_text("🔍 Loading available tracks...")
     try:

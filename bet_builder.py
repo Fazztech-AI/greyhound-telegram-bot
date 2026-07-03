@@ -1,8 +1,18 @@
 import re
-from datetime import date
-from topaz_client import get_all_races_for_date, get_runners_for_race, get_runners_for_races_parallel
-from scorer import score_runner, confidence_label, dominance_label, race_risk_label, suggested_bet_type
-from utils import normalise
+
+from topaz_client import (
+    get_all_races_for_date,
+    get_runners_for_race,
+    get_runners_for_races_parallel,
+)
+from scorer import (
+    score_runner,
+    confidence_label,
+    dominance_label,
+    race_risk_label,
+    suggested_bet_type,
+)
+from utils import normalise, melbourne_today
 
 def get_track_name(race, runners=None):
     if runners:
@@ -41,7 +51,7 @@ def build_meeting_track_map(races):
 
 def scan_ranked(target_date=None, track_search=None):
     if target_date is None:
-        target_date = date.today()
+        target_date = melbourne_today()
 
     races = get_all_races_for_date(target_date)
 
@@ -128,7 +138,7 @@ def format_pick(pick, index):
 
 def build_best_bets_message(target_date=None, track_search=None):
     if target_date is None:
-        target_date = date.today()
+        target_date = melbourne_today()
 
     ranked = scan_ranked(target_date, track_search)
     if not ranked:
@@ -167,7 +177,7 @@ def build_best_bets_message(target_date=None, track_search=None):
 
 def build_tracks_message(target_date=None):
     if target_date is None:
-        target_date = date.today()
+        target_date = melbourne_today()
 
     races = get_all_races_for_date(target_date)
     if not races:

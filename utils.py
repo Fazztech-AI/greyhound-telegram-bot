@@ -1,5 +1,11 @@
 import re
 from datetime import date, timedelta, datetime
+from zoneinfo import ZoneInfo
+
+MELBOURNE_TZ = ZoneInfo("Australia/Melbourne")
+
+def melbourne_today():
+    return datetime.now(MELBOURNE_TZ).date()
 import pandas as pd
 
 def is_valid(value):

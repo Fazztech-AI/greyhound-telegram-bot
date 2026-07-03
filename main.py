@@ -1,10 +1,10 @@
 import os
 import re
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 import pandas as pd
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from topaz import TopazAPI
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -21,18 +21,31 @@ def is_valid(value):
     return value is not None and not pd.isna(value)
 
 
-def get_all_today_races():
+def parse_date_from_text(text):
+    text = text.lower().strip()
+
+    if "tomorrow" in text:
+        return date.today() + timedelta(days=1)
+
+    match = re.search(r"\d{4}-\d{2}-\d{2}", text)
+    if match:
+        return datetime.strptime(match.group(0), "%Y-%m-%d").date()
+
+    return date.today()
+
+
+def get_all_races_for_date(target_date):
     topaz = make_topaz()
-    today = date.today().isoformat()
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    from_date = target_date.isoformat()
+    to_date = (target_date + timedelta(days=1)).isoformat()
 
     all_races = []
 
     for code in AUTHORITY_CODES:
         try:
             races = topaz.get_races(
-                from_date=today,
-                to_date=tomorrow,
+                from_date=from_date,
+                to_date=to_date,
                 owning_authority_code=code,
             )
 
@@ -70,12 +83,7 @@ def parse_last5(last5):
     if not isinstance(last5, str):
         return []
 
-    nums = []
-    for ch in last5:
-        if ch.isdigit():
-            nums.append(int(ch))
-
-    return nums
+    return [int(ch) for ch in last5 if ch.isdigit()]
 
 
 def confidence_label(score):
@@ -97,14 +105,12 @@ def score_runner(runner, field):
 
     rating = runner.get("rating")
     if is_valid(rating) and rating > 0:
-        pts = min(20, float(rating) / 5)
-        score += pts
+        score += min(20, float(rating) / 5)
         reasons.append(f"Rating {rating}")
 
     avg_speed = runner.get("averageSpeed")
     field_speeds = [
-        r.get("averageSpeed")
-        for r in field
+        r.get("averageSpeed") for r in field
         if is_valid(r.get("averageSpeed")) and r.get("averageSpeed") > 0
     ]
 
@@ -122,7 +128,7 @@ def score_runner(runner, field):
             best_finish_td = int(best_finish_td)
             if best_finish_td == 1:
                 score += 15
-                reasons.append("Has won track/distance")
+                reasons.append("Won track/distance")
             elif best_finish_td <= 3:
                 score += 10
                 reasons.append("Placed track/distance")
@@ -190,30 +196,32 @@ def score_runner(runner, field):
         except Exception:
             pass
 
-    score = round(max(0, min(score, 100)), 1)
-
-    if not reasons:
-        reasons.append("Top ranked by available data")
-
-    return score, reasons[:5]
+    return round(max(0, min(score, 100)), 1), reasons[:5] or ["Top ranked by available data"]
 
 
-def get_track_from_name(race, runners):
+def get_track_name(race, runners):
     if runners:
         track = runners[0].get("track")
         if track:
-            return track
+            return str(track)
 
-    name = race.get("name", "")
-    match = re.search(r"@([A-Z]+)", str(name))
+    name = str(race.get("name", ""))
+    match = re.search(r"@([A-Z]+)", name)
     if match:
         return match.group(1)
 
     return "Unknown Track"
 
 
-def scan_all_ranked():
-    races = get_all_today_races()
+def track_matches(track_name, search):
+    return search.lower() in track_name.lower()
+
+
+def scan_ranked(target_date=None, track_search=None):
+    if target_date is None:
+        target_date = date.today()
+
+    races = get_all_races_for_date(target_date)
     ranked = []
 
     for race in races:
@@ -228,6 +236,11 @@ def scan_all_ranked():
         if len(active) < 4:
             continue
 
+        track = get_track_name(race, active)
+
+        if track_search and not track_matches(track, track_search):
+            continue
+
         scored = []
 
         for runner in active:
@@ -238,16 +251,15 @@ def scan_all_ranked():
 
         best_score, best_runner, reasons = scored[0]
         second_score = scored[1][0] if len(scored) > 1 else 0
-        margin = round(best_score - second_score, 1)
 
         ranked.append({
             "score": best_score,
-            "margin": margin,
+            "margin": round(best_score - second_score, 1),
             "race": race,
             "runner": best_runner,
             "runners": active,
             "reasons": reasons,
-            "field_size": len(active),
+            "track": track,
         })
 
     ranked.sort(key=lambda x: (x["score"], x["margin"]), reverse=True)
@@ -258,7 +270,6 @@ def format_leg(pick):
     race = pick["race"]
     runner = pick["runner"]
 
-    track = get_track_from_name(race, pick["runners"])
     race_no = race.get("raceNumber", "?")
     authority = race.get("authority", "?")
     distance = race.get("distance", "?")
@@ -266,7 +277,7 @@ def format_leg(pick):
     dog = runner.get("dogName", "Unknown Dog")
     box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
 
-    return f"{track} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
+    return f"{pick['track']} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
 
 
 def format_pick(pick, index):
@@ -283,62 +294,114 @@ def format_pick(pick, index):
     )
 
 
-def build_bet_message():
-    ranked = scan_all_ranked()
+def build_message(target_date=None, track_search=None):
+    if target_date is None:
+        target_date = date.today()
+
+    ranked = scan_ranked(target_date, track_search)
 
     if not ranked:
-        return "No race/runner data found from Topaz today."
+        if track_search:
+            return f"No races found for '{track_search}' on {target_date}."
+        return f"No race/runner data found for {target_date}."
 
-    top10 = ranked[:10]
+    title = f"🐕 Smart Greyhound Bets — {target_date}"
+    if track_search:
+        title += f"\nTrack search: {track_search}"
 
-    safer_singles = [p for p in ranked if p["score"] >= 45][:5]
-    if len(safer_singles) < 5:
-        safer_singles = top10[:5]
+    msg = title + "\n\n"
+    msg += "Verify odds/scratchings before betting. Model uses Topaz form data only.\n\n"
 
-    two_leg = top10[:2]
-    three_leg = top10[:3]
-    four_api_keeper = top10[:4]
+    top_singles = ranked[:5]
 
-    msg = "🐕 TODAY'S SMART GREYHOUND BETS\n\n"
-    msg += "These are model-ranked suggestions from Topaz data only. Verify odds/scratchings before betting.\n\n"
-
-    msg += "✅ Safer Singles / Place-Style Picks\n\n"
-    for i, pick in enumerate(safer_singles, start=1):
+    msg += "✅ Best Singles / Place-Style Picks\n\n"
+    for i, pick in enumerate(top_singles, start=1):
         msg += format_pick(pick, i) + "\n"
 
     msg += "🔒 Suggested 2-Leg Safer Multi\n"
-    for i, pick in enumerate(two_leg, start=1):
+    for i, pick in enumerate(ranked[:2], start=1):
         msg += f"Leg {i}: {format_leg(pick)} ({pick['score']}/100)\n"
     msg += "\n"
 
-    msg += "⚡ Suggested 3-Leg Higher Risk Multi\n"
-    for i, pick in enumerate(three_leg, start=1):
-        msg += f"Leg {i}: {format_leg(pick)} ({pick['score']}/100)\n"
-    msg += "\n"
+    if len(ranked) >= 3:
+        msg += "⚡ Suggested 3-Leg Higher Risk Multi\n"
+        for i, pick in enumerate(ranked[:3], start=1):
+            msg += f"Leg {i}: {format_leg(pick)} ({pick['score']}/100)\n"
+        msg += "\n"
 
-    msg += "🧾 4 Betfair API-Keeper Markets\n"
-    for i, pick in enumerate(four_api_keeper, start=1):
+    msg += "🧾 4 API-Keeper Markets\n"
+    for i, pick in enumerate(ranked[:4], start=1):
         msg += f"{i}. {format_leg(pick)} ({confidence_label(pick['score'])})\n"
 
-    msg += "\nStake idea: tiny stakes only until we track results."
+    msg += "\nStake idea: tiny stakes until we track results."
 
     return msg[:4000]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🐕 Greyhound Scanner online.\n\nType /scan for smart bet suggestions."
+        "🐕 Greyhound Scanner online.\n\n"
+        "Commands:\n"
+        "/scan\n"
+        "/track Sandown\n"
+        "/track The Meadows\n"
+        "/track Warragul tomorrow\n"
+        "/track Sandown 2026-07-05\n\n"
+        "You can also just type a track name."
     )
 
 
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Scanning races, runners, form and building smart bets...")
-
+    await update.message.reply_text("🔍 Scanning all races and building suggestions...")
     try:
-        msg = build_bet_message()
-        await update.message.reply_text(msg)
+        await update.message.reply_text(build_message())
     except Exception as e:
         await update.message.reply_text(f"Scanner error:\n{e}")
+
+
+async def track_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = " ".join(context.args).strip()
+
+    if not text:
+        await update.message.reply_text("Example: /track Sandown or /track The Meadows tomorrow")
+        return
+
+    target_date = parse_date_from_text(text)
+
+    clean_track = (
+        text.replace("tomorrow", "")
+        .replace(target_date.isoformat(), "")
+        .strip()
+    )
+
+    await update.message.reply_text(f"🔍 Scanning {clean_track} for {target_date}...")
+
+    try:
+        await update.message.reply_text(build_message(target_date, clean_track))
+    except Exception as e:
+        await update.message.reply_text(f"Track scanner error:\n{e}")
+
+
+async def natural_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+
+    if len(text) < 3:
+        return
+
+    target_date = parse_date_from_text(text)
+
+    clean_track = (
+        text.replace("tomorrow", "")
+        .replace(target_date.isoformat(), "")
+        .strip()
+    )
+
+    await update.message.reply_text(f"🔍 Checking {clean_track} for {target_date}...")
+
+    try:
+        await update.message.reply_text(build_message(target_date, clean_track))
+    except Exception as e:
+        await update.message.reply_text(f"Message scanner error:\n{e}")
 
 
 def main():
@@ -348,11 +411,14 @@ def main():
     if not TOPAZ_API_KEY:
         raise RuntimeError("TOPAZ_API_KEY missing")
 
-    print("🚀 TOPAZ SMART BET VERSION STARTED")
+    print("🚀 TOPAZ TRACK CHAT VERSION STARTED")
 
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("scan", scan))
+    app.add_handler(CommandHandler("track", track_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message))
+
     app.run_polling()
 
 

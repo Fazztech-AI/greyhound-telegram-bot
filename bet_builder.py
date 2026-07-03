@@ -1,6 +1,6 @@
 import re
 from datetime import date
-from topaz_client import get_all_races_for_date, get_runners_for_race
+from topaz_client import get_all_races_for_date, get_runners_for_race, get_runners_for_races_parallel
 from scorer import score_runner, confidence_label, dominance_label, race_risk_label, suggested_bet_type
 from utils import normalise
 
@@ -20,15 +20,47 @@ def get_track_name(race, runners=None):
 def track_matches(track_name, search):
     return normalise(search) in normalise(track_name)
 
+def build_meeting_track_map(races):
+    """Find track names by checking only one race per meeting, not every race."""
+    meeting_first_race = {}
+    for race in races:
+        meeting_id = race.get("meetingId")
+        if meeting_id not in meeting_first_race:
+            meeting_first_race[meeting_id] = race
+
+    first_race_ids = [r.get("raceId") for r in meeting_first_race.values()]
+    runners_by_race = get_runners_for_races_parallel(first_race_ids, max_workers=8)
+
+    track_map = {}
+    for meeting_id, race in meeting_first_race.items():
+        runners = runners_by_race.get(race.get("raceId"), [])
+        track_map[meeting_id] = get_track_name(race, runners)
+
+    return track_map
+
+
 def scan_ranked(target_date=None, track_search=None):
     if target_date is None:
         target_date = date.today()
 
     races = get_all_races_for_date(target_date)
-    ranked = []
 
+    # Fast track filtering: identify matching meetings first, then only fetch those races.
+    meeting_track_map = build_meeting_track_map(races)
+
+    if track_search:
+        races = [
+            race for race in races
+            if track_matches(meeting_track_map.get(race.get("meetingId"), "Unknown Track"), track_search)
+        ]
+
+    race_ids = [race.get("raceId") for race in races]
+    runners_by_race = get_runners_for_races_parallel(race_ids, max_workers=8)
+
+    ranked = []
     for race in races:
-        runners = get_runners_for_race(race.get("raceId"))
+        race_id = race.get("raceId")
+        runners = runners_by_race.get(race_id, [])
 
         active = [
             r for r in runners
@@ -38,8 +70,8 @@ def scan_ranked(target_date=None, track_search=None):
             continue
 
         track = get_track_name(race, active)
-        if track_search and not track_matches(track, track_search):
-            continue
+        if track == "Unknown Track":
+            track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
 
         scored = []
         for runner in active:
@@ -138,22 +170,23 @@ def build_tracks_message(target_date=None):
         target_date = date.today()
 
     races = get_all_races_for_date(target_date)
+    if not races:
+        return f"No tracks found for {target_date}."
+
+    meeting_track_map = build_meeting_track_map(races)
     tracks = {}
 
     for race in races:
-        runners = get_runners_for_race(race.get("raceId"))
-        track = get_track_name(race, runners)
+        track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
         tracks.setdefault(track, 0)
         tracks[track] += 1
-
-    if not tracks:
-        return f"No tracks found for {target_date}."
 
     msg = f"🐕 Tracks racing on {target_date}\n\n"
     for track, count in sorted(tracks.items()):
         msg += f"• {track} — {count} races\n"
+
     msg += "\nUse: /track Geelong or /race Geelong 5"
-    return msg
+    return msg[:4000]
 
 def build_race_message(track_search, race_number, target_date=None):
     if target_date is None:

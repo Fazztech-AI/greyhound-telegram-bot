@@ -1,5 +1,5 @@
 import os
-import json
+import math
 from datetime import date, timedelta
 
 import pandas as pd
@@ -17,11 +17,8 @@ def make_topaz():
     return TopazAPI(TOPAZ_API_KEY)
 
 
-def get_value(row, keys, default="Unknown"):
-    for key in keys:
-        if key in row and pd.notna(row[key]) and row[key] != "":
-            return row[key]
-    return default
+def is_valid(value):
+    return value is not None and not pd.isna(value)
 
 
 def get_all_today_races():
@@ -29,7 +26,7 @@ def get_all_today_races():
     today = date.today().isoformat()
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
 
-    all_races = []
+    races_out = []
 
     for code in AUTHORITY_CODES:
         try:
@@ -43,14 +40,14 @@ def get_all_today_races():
                 continue
 
             for _, race in races.iterrows():
-                race_dict = race.to_dict()
-                race_dict["authority"] = code
-                all_races.append(race_dict)
+                r = race.to_dict()
+                r["authority"] = code
+                races_out.append(r)
 
         except Exception as e:
-            print(f"Error loading {code}: {e}")
+            print(f"Race load error {code}: {e}")
 
-    return all_races
+    return races_out
 
 
 def get_runners_for_race(race_id):
@@ -65,97 +62,197 @@ def get_runners_for_race(race_id):
         return runners.to_dict("records")
 
     except Exception as e:
-        print(f"Runner error for race {race_id}: {e}")
+        print(f"Runner load error {race_id}: {e}")
         return []
 
 
-def format_race_line(race):
-    name = get_value(race, ["name", "raceName"], "Unknown Race")
-    race_no = get_value(race, ["raceNumber"], "?")
-    distance = get_value(race, ["distance"], "?")
-    authority = race.get("authority", "?")
-    start_time = get_value(race, ["startTime"], "")
+def parse_last5(last5):
+    if not isinstance(last5, str):
+        return []
 
-    return f"• {authority} R{race_no} — {distance}m — {start_time}\n  {name}"
+    nums = []
+    for ch in last5:
+        if ch.isdigit():
+            nums.append(int(ch))
+
+    return nums
+
+
+def score_runner(runner, field):
+    score = 0
+    reasons = []
+
+    if runner.get("scratched") is True:
+        return 0, ["Scratched"]
+
+    rating = runner.get("rating")
+    if is_valid(rating) and rating > 0:
+        score += min(20, rating / 5)
+        reasons.append(f"Rating {rating}")
+
+    avg_speed = runner.get("averageSpeed")
+    field_speeds = [
+        r.get("averageSpeed") for r in field
+        if is_valid(r.get("averageSpeed")) and r.get("averageSpeed") > 0
+    ]
+
+    if is_valid(avg_speed) and avg_speed > 0 and field_speeds:
+        best_speed = max(field_speeds)
+        if avg_speed == best_speed:
+            score += 20
+            reasons.append("Best average speed")
+        else:
+            score += max(0, 15 * (avg_speed / best_speed))
+
+    best_time = runner.get("bestTime")
+    field_times = [
+        r.get("bestTime") for r in field
+        if is_valid(r.get("bestTime")) and isinstance(r.get("bestTime"), (int, float)) and r.get("bestTime") > 0
+    ]
+
+    if is_valid(best_time) and isinstance(best_time, (int, float)) and best_time > 0 and field_times:
+        fastest_time = min(field_times)
+        if best_time == fastest_time:
+            score += 20
+            reasons.append("Fastest best time")
+        else:
+            score += max(0, 15 * (fastest_time / best_time))
+
+    last5 = parse_last5(runner.get("last5"))
+    if last5:
+        top3 = sum(1 for pos in last5 if pos <= 3)
+        wins = sum(1 for pos in last5 if pos == 1)
+
+        score += top3 * 3
+        score += wins * 2
+
+        if top3 >= 4:
+            reasons.append("Very consistent recent form")
+        elif top3 >= 3:
+            reasons.append("Good recent form")
+
+    box = runner.get("boxNumber") or runner.get("rugNumber")
+    if box in [1, 2]:
+        score += 10
+        reasons.append("Good inside box")
+    elif box in [3, 4, 5]:
+        score += 5
+    elif box in [7, 8]:
+        score += 3
+
+    total_form_count = runner.get("totalFormCount")
+    if is_valid(total_form_count):
+        if total_form_count == 0:
+            score -= 15
+            reasons.append("Limited exposed form")
+        elif total_form_count >= 5:
+            score += 5
+
+    return round(max(0, min(score, 100)), 1), reasons
+
+
+def scan_best_bets(limit=8):
+    races = get_all_today_races()
+    picks = []
+
+    for race in races:
+        race_id = race.get("raceId")
+        runners = get_runners_for_race(race_id)
+
+        if len(runners) < 4:
+            continue
+
+        active_runners = [r for r in runners if r.get("scratched") is not True]
+
+        if len(active_runners) < 4:
+            continue
+
+        scored = []
+
+        for runner in active_runners:
+            score, reasons = score_runner(runner, active_runners)
+            scored.append((score, runner, reasons))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        best_score, best_runner, reasons = scored[0]
+        second_score = scored[1][0] if len(scored) > 1 else 0
+
+        margin = best_score - second_score
+
+        if best_score >= 55 and margin >= 5:
+            picks.append({
+                "score": best_score,
+                "margin": round(margin, 1),
+                "race": race,
+                "runner": best_runner,
+                "reasons": reasons,
+            })
+
+    picks.sort(key=lambda x: x["score"], reverse=True)
+    return picks[:limit]
+
+
+def format_pick(pick, index):
+    race = pick["race"]
+    runner = pick["runner"]
+
+    track = runner.get("track") or "Unknown Track"
+    race_no = race.get("raceNumber", "?")
+    authority = race.get("authority", "?")
+    distance = race.get("distance", "?")
+    start = race.get("startTime", "")
+    dog = runner.get("dogName", "Unknown Dog")
+    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
+    trainer = runner.get("trainerName", "Unknown Trainer")
+
+    reasons = pick["reasons"][:4]
+    reason_text = "\n".join([f"✔ {r}" for r in reasons]) if reasons else "✔ Top ranked by model"
+
+    return (
+        f"{index}. ⭐ {pick['score']}/100\n"
+        f"{track} R{race_no} ({authority}) — {distance}m — {start}\n"
+        f"Dog: Box {box} {dog}\n"
+        f"Trainer: {trainer}\n"
+        f"Edge over 2nd: {pick['margin']} pts\n"
+        f"{reason_text}\n"
+    )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🐕 Topaz Greyhound Scanner online.\n\nType /scan."
+        "🐕 Greyhound Scanner online.\n\n"
+        "Type /scan for today's model picks."
     )
 
 
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Scanning all Australian greyhound races...")
+    await update.message.reply_text("🔍 Scanning all races and scoring runners...")
 
     try:
-        races = get_all_today_races()
+        picks = scan_best_bets()
 
-        if not races:
-            await update.message.reply_text("No races found today.")
-            return
-
-        vic_count = len([r for r in races if r.get("authority") == "VIC"])
-
-        msg = "🐕 Today's Races Loaded\n\n"
-        msg += f"Total races: {len(races)}\n"
-        msg += f"VIC races: {vic_count}\n\n"
-        msg += "First 15 races:\n\n"
-
-        for race in races[:15]:
-            msg += format_race_line(race) + "\n\n"
-
-        msg += "Now testing runners from first available race..."
-
-        await update.message.reply_text(msg[:4000])
-
-        first_race = races[0]
-        race_id = first_race.get("raceId")
-        runners = get_runners_for_race(race_id)
-
-        if not runners:
+        if not picks:
             await update.message.reply_text(
-                f"No runners found for raceId {race_id}."
+                "No high-probability picks found yet.\n\n"
+                "This is good — the bot should skip messy days/races."
             )
             return
 
-        runner_msg = "🐕 First Race Runners\n\n"
-        runner_msg += format_race_line(first_race) + "\n\n"
+        msg = "🐕 Today's Top Model Picks\n\n"
 
-        for runner in runners[:8]:
-            box = get_value(runner, ["boxNumber", "box", "rugNumber"], "?")
-            dog = get_value(runner, ["dogName", "name", "runnerName"], "Unknown Dog")
-            trainer = get_value(runner, ["trainerName", "trainer"], "Unknown Trainer")
-            scratched = get_value(runner, ["isScratched", "scratched"], False)
+        for i, pick in enumerate(picks, start=1):
+            msg += format_pick(pick, i) + "\n"
 
-            runner_msg += f"Box {box}: {dog}\n"
-            runner_msg += f"Trainer: {trainer}\n"
-            runner_msg += f"Scratched: {scratched}\n\n"
+        msg += (
+            "Note: This is Version 1 scoring using Topaz form data only. "
+            "Verify odds and scratchings before betting."
+        )
 
-        await update.message.reply_text(runner_msg[:4000])
+        await update.message.reply_text(msg[:4000])
 
     except Exception as e:
-        await update.message.reply_text(f"Topaz scanner error:\n{e}")
-
-
-async def debug_runners(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Debugging runner fields...")
-
-    races = get_all_today_races()
-    if not races:
-        await update.message.reply_text("No races found.")
-        return
-
-    race_id = races[0].get("raceId")
-    runners = get_runners_for_race(race_id)
-
-    if not runners:
-        await update.message.reply_text("No runners found.")
-        return
-
-    await update.message.reply_text(
-        json.dumps(runners[0], indent=2, default=str)[:4000]
-    )
+        await update.message.reply_text(f"Scanner error:\n{e}")
 
 
 def main():
@@ -165,13 +262,11 @@ def main():
     if not TOPAZ_API_KEY:
         raise RuntimeError("TOPAZ_API_KEY missing")
 
-    print("🚀 TOPAZ RUNNER VERSION STARTED")
+    print("🚀 TOPAZ SCORING VERSION STARTED")
 
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("scan", scan))
-    app.add_handler(CommandHandler("debugrunners", debug_runners))
-
     app.run_polling()
 
 

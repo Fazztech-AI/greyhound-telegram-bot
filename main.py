@@ -1,5 +1,5 @@
 import os
-import math
+import re
 from datetime import date, timedelta
 
 import pandas as pd
@@ -26,7 +26,7 @@ def get_all_today_races():
     today = date.today().isoformat()
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
 
-    races_out = []
+    all_races = []
 
     for code in AUTHORITY_CODES:
         try:
@@ -42,12 +42,12 @@ def get_all_today_races():
             for _, race in races.iterrows():
                 r = race.to_dict()
                 r["authority"] = code
-                races_out.append(r)
+                all_races.append(r)
 
         except Exception as e:
             print(f"Race load error {code}: {e}")
 
-    return races_out
+    return all_races
 
 
 def get_runners_for_race(race_id):
@@ -78,21 +78,33 @@ def parse_last5(last5):
     return nums
 
 
+def confidence_label(score):
+    if score >= 70:
+        return "🔥 Strong"
+    if score >= 50:
+        return "✅ Usable"
+    if score >= 35:
+        return "⚠️ Speculative"
+    return "🧊 Low"
+
+
 def score_runner(runner, field):
     score = 0
     reasons = []
 
-    if runner.get("scratched") is True:
+    if runner.get("scratched") is True or runner.get("isLateScratching") is True:
         return 0, ["Scratched"]
 
     rating = runner.get("rating")
     if is_valid(rating) and rating > 0:
-        score += min(20, rating / 5)
+        pts = min(20, float(rating) / 5)
+        score += pts
         reasons.append(f"Rating {rating}")
 
     avg_speed = runner.get("averageSpeed")
     field_speeds = [
-        r.get("averageSpeed") for r in field
+        r.get("averageSpeed")
+        for r in field
         if is_valid(r.get("averageSpeed")) and r.get("averageSpeed") > 0
     ]
 
@@ -104,153 +116,227 @@ def score_runner(runner, field):
         else:
             score += max(0, 15 * (avg_speed / best_speed))
 
-    best_time = runner.get("bestTime")
-    field_times = [
-        r.get("bestTime") for r in field
-        if is_valid(r.get("bestTime")) and isinstance(r.get("bestTime"), (int, float)) and r.get("bestTime") > 0
-    ]
-
-    if is_valid(best_time) and isinstance(best_time, (int, float)) and best_time > 0 and field_times:
-        fastest_time = min(field_times)
-        if best_time == fastest_time:
-            score += 20
-            reasons.append("Fastest best time")
-        else:
-            score += max(0, 15 * (fastest_time / best_time))
+    best_finish_td = runner.get("bestFinishTrackAndDistance")
+    if is_valid(best_finish_td):
+        try:
+            best_finish_td = int(best_finish_td)
+            if best_finish_td == 1:
+                score += 15
+                reasons.append("Has won track/distance")
+            elif best_finish_td <= 3:
+                score += 10
+                reasons.append("Placed track/distance")
+        except Exception:
+            pass
 
     last5 = parse_last5(runner.get("last5"))
     if last5:
         top3 = sum(1 for pos in last5 if pos <= 3)
         wins = sum(1 for pos in last5 if pos == 1)
 
-        score += top3 * 3
-        score += wins * 2
+        score += top3 * 4
+        score += wins * 3
 
         if top3 >= 4:
-            reasons.append("Very consistent recent form")
+            reasons.append("Very consistent last 5")
         elif top3 >= 3:
             reasons.append("Good recent form")
+        elif wins >= 1:
+            reasons.append("Recent winner")
+    else:
+        score -= 5
+        reasons.append("Limited last-5 form")
 
     box = runner.get("boxNumber") or runner.get("rugNumber")
-    if box in [1, 2]:
-        score += 10
-        reasons.append("Good inside box")
-    elif box in [3, 4, 5]:
-        score += 5
-    elif box in [7, 8]:
-        score += 3
+    try:
+        box = int(box)
+        if box in [1, 2]:
+            score += 12
+            reasons.append("Good inside box")
+        elif box in [3, 4]:
+            score += 7
+        elif box in [5, 6]:
+            score += 3
+        elif box in [7, 8]:
+            score += 4
+    except Exception:
+        pass
 
     total_form_count = runner.get("totalFormCount")
     if is_valid(total_form_count):
-        if total_form_count == 0:
-            score -= 15
-            reasons.append("Limited exposed form")
-        elif total_form_count >= 5:
-            score += 5
+        try:
+            total_form_count = int(total_form_count)
+            if total_form_count == 0:
+                score -= 8
+                reasons.append("No exposed form")
+            elif total_form_count >= 10:
+                score += 8
+                reasons.append("Experienced runner")
+            elif total_form_count >= 5:
+                score += 5
+        except Exception:
+            pass
 
-    return round(max(0, min(score, 100)), 1), reasons
+    start_price = runner.get("startPrice")
+    if is_valid(start_price):
+        try:
+            start_price = float(start_price)
+            if start_price > 1:
+                if start_price <= 2.5:
+                    score += 15
+                    reasons.append("Market liked recently")
+                elif start_price <= 5:
+                    score += 8
+        except Exception:
+            pass
+
+    score = round(max(0, min(score, 100)), 1)
+
+    if not reasons:
+        reasons.append("Top ranked by available data")
+
+    return score, reasons[:5]
 
 
-def scan_best_bets(limit=8):
+def get_track_from_name(race, runners):
+    if runners:
+        track = runners[0].get("track")
+        if track:
+            return track
+
+    name = race.get("name", "")
+    match = re.search(r"@([A-Z]+)", str(name))
+    if match:
+        return match.group(1)
+
+    return "Unknown Track"
+
+
+def scan_all_ranked():
     races = get_all_today_races()
-    picks = []
+    ranked = []
 
     for race in races:
         race_id = race.get("raceId")
         runners = get_runners_for_race(race_id)
 
-        if len(runners) < 4:
-            continue
+        active = [
+            r for r in runners
+            if r.get("scratched") is not True and r.get("isLateScratching") is not True
+        ]
 
-        active_runners = [r for r in runners if r.get("scratched") is not True]
-
-        if len(active_runners) < 4:
+        if len(active) < 4:
             continue
 
         scored = []
 
-        for runner in active_runners:
-            score, reasons = score_runner(runner, active_runners)
+        for runner in active:
+            score, reasons = score_runner(runner, active)
             scored.append((score, runner, reasons))
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
         best_score, best_runner, reasons = scored[0]
         second_score = scored[1][0] if len(scored) > 1 else 0
+        margin = round(best_score - second_score, 1)
 
-        margin = best_score - second_score
+        ranked.append({
+            "score": best_score,
+            "margin": margin,
+            "race": race,
+            "runner": best_runner,
+            "runners": active,
+            "reasons": reasons,
+            "field_size": len(active),
+        })
 
-        if best_score >= 55 and margin >= 5:
-            picks.append({
-                "score": best_score,
-                "margin": round(margin, 1),
-                "race": race,
-                "runner": best_runner,
-                "reasons": reasons,
-            })
-
-    picks.sort(key=lambda x: x["score"], reverse=True)
-    return picks[:limit]
+    ranked.sort(key=lambda x: (x["score"], x["margin"]), reverse=True)
+    return ranked
 
 
-def format_pick(pick, index):
+def format_leg(pick):
     race = pick["race"]
     runner = pick["runner"]
 
-    track = runner.get("track") or "Unknown Track"
+    track = get_track_from_name(race, pick["runners"])
     race_no = race.get("raceNumber", "?")
     authority = race.get("authority", "?")
     distance = race.get("distance", "?")
     start = race.get("startTime", "")
     dog = runner.get("dogName", "Unknown Dog")
     box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
-    trainer = runner.get("trainerName", "Unknown Trainer")
 
-    reasons = pick["reasons"][:4]
-    reason_text = "\n".join([f"✔ {r}" for r in reasons]) if reasons else "✔ Top ranked by model"
+    return f"{track} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
+
+
+def format_pick(pick, index):
+    runner = pick["runner"]
+    trainer = runner.get("trainerName", "Unknown Trainer")
+    reasons = "\n".join([f"✔ {r}" for r in pick["reasons"]])
 
     return (
-        f"{index}. ⭐ {pick['score']}/100\n"
-        f"{track} R{race_no} ({authority}) — {distance}m — {start}\n"
-        f"Dog: Box {box} {dog}\n"
+        f"{index}. {confidence_label(pick['score'])} — {pick['score']}/100\n"
+        f"{format_leg(pick)}\n"
         f"Trainer: {trainer}\n"
         f"Edge over 2nd: {pick['margin']} pts\n"
-        f"{reason_text}\n"
+        f"{reasons}\n"
     )
+
+
+def build_bet_message():
+    ranked = scan_all_ranked()
+
+    if not ranked:
+        return "No race/runner data found from Topaz today."
+
+    top10 = ranked[:10]
+
+    safer_singles = [p for p in ranked if p["score"] >= 45][:5]
+    if len(safer_singles) < 5:
+        safer_singles = top10[:5]
+
+    two_leg = top10[:2]
+    three_leg = top10[:3]
+    four_api_keeper = top10[:4]
+
+    msg = "🐕 TODAY'S SMART GREYHOUND BETS\n\n"
+    msg += "These are model-ranked suggestions from Topaz data only. Verify odds/scratchings before betting.\n\n"
+
+    msg += "✅ Safer Singles / Place-Style Picks\n\n"
+    for i, pick in enumerate(safer_singles, start=1):
+        msg += format_pick(pick, i) + "\n"
+
+    msg += "🔒 Suggested 2-Leg Safer Multi\n"
+    for i, pick in enumerate(two_leg, start=1):
+        msg += f"Leg {i}: {format_leg(pick)} ({pick['score']}/100)\n"
+    msg += "\n"
+
+    msg += "⚡ Suggested 3-Leg Higher Risk Multi\n"
+    for i, pick in enumerate(three_leg, start=1):
+        msg += f"Leg {i}: {format_leg(pick)} ({pick['score']}/100)\n"
+    msg += "\n"
+
+    msg += "🧾 4 Betfair API-Keeper Markets\n"
+    for i, pick in enumerate(four_api_keeper, start=1):
+        msg += f"{i}. {format_leg(pick)} ({confidence_label(pick['score'])})\n"
+
+    msg += "\nStake idea: tiny stakes only until we track results."
+
+    return msg[:4000]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🐕 Greyhound Scanner online.\n\n"
-        "Type /scan for today's model picks."
+        "🐕 Greyhound Scanner online.\n\nType /scan for smart bet suggestions."
     )
 
 
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Scanning all races and scoring runners...")
+    await update.message.reply_text("🔍 Scanning races, runners, form and building smart bets...")
 
     try:
-        picks = scan_best_bets()
-
-        if not picks:
-            await update.message.reply_text(
-                "No high-probability picks found yet.\n\n"
-                "This is good — the bot should skip messy days/races."
-            )
-            return
-
-        msg = "🐕 Today's Top Model Picks\n\n"
-
-        for i, pick in enumerate(picks, start=1):
-            msg += format_pick(pick, i) + "\n"
-
-        msg += (
-            "Note: This is Version 1 scoring using Topaz form data only. "
-            "Verify odds and scratchings before betting."
-        )
-
-        await update.message.reply_text(msg[:4000])
-
+        msg = build_bet_message()
+        await update.message.reply_text(msg)
     except Exception as e:
         await update.message.reply_text(f"Scanner error:\n{e}")
 
@@ -262,7 +348,7 @@ def main():
     if not TOPAZ_API_KEY:
         raise RuntimeError("TOPAZ_API_KEY missing")
 
-    print("🚀 TOPAZ SCORING VERSION STARTED")
+    print("🚀 TOPAZ SMART BET VERSION STARTED")
 
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))

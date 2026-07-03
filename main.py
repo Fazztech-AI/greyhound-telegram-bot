@@ -45,40 +45,24 @@ def get_today_races():
     return all_races
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🐕 Topaz Greyhound Scanner online.\n\nType /scan."
-    )
-
-
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Scanning Topaz races...")
+    await update.message.reply_text("Inspecting first Topaz race...")
 
     try:
         races = get_today_races()
 
         if not races:
-            await update.message.reply_text(
-                "No races found from Topaz today, or your key does not have access to this endpoint."
-            )
+            await update.message.reply_text("No races.")
             return
 
-        msg = "🐕 Today's Topaz Races\n\n"
+        import json
 
-        for race in races[:25]:
-            msg += (
-                f"• {race['track']} R{race['race_number']} "
-                f"({race['authority']}) — {race['distance']}m\n"
-                f"  ID: {race['race_id']}\n"
-            )
-
-        msg += "\nNext step: pull runners for each race."
-
-        await update.message.reply_text(msg[:4000])
+        await update.message.reply_text(
+            json.dumps(races[0], indent=2)[:4000]
+        )
 
     except Exception as e:
-        await update.message.reply_text(f"Topaz scanner error:\n{e}")
-
+        await update.message.reply_text(str(e))
 
 def main():
     if not BOT_TOKEN:

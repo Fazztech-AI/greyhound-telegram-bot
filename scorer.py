@@ -5,7 +5,19 @@ def parse_last5(last5):
         return []
     return [int(ch) for ch in last5 if ch.isdigit()]
 
-def confidence_label(score):
+def confidence_label(score, margin=None):
+    if margin is not None:
+        if margin < 5:
+            if score >= 70:
+                return "⚠️ Good dog, tight race"
+            return "🧊 Low"
+        if margin >= 20 and score >= 70:
+            return "🔥 Dominant"
+        if margin >= 10 and score >= 65:
+            return "✅ Strong"
+        if margin >= 5 and score >= 55:
+            return "✅ Playable"
+
     if score >= 75:
         return "🔥 Strong"
     if score >= 60:

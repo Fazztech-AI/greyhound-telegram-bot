@@ -40,4 +40,4 @@ def get_runners_for_race(race_id):
         return runners.to_dict("records")
     except Exception as e:
         print(f"Runner load error {race_id}: {e}")
-        return []
+        return [] 

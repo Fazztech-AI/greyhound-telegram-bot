@@ -14,13 +14,13 @@ def is_valid(value):
 def parse_date_from_text(text: str):
     text = (text or "").lower().strip()
     if "tomorrow" in text:
-        return date.today() + timedelta(days=1)
+        return melbourne_today() + timedelta(days=1)
 
     match = re.search(r"\d{4}-\d{2}-\d{2}", text)
     if match:
         return datetime.strptime(match.group(0), "%Y-%m-%d").date()
 
-    return date.today()
+    return melbourne_today()
 
 def normalise(text: str):
     return re.sub(r"[^a-z0-9]", "", str(text).lower())

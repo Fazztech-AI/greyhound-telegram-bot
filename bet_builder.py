@@ -126,7 +126,7 @@ def format_pick(pick, index):
     warnings_text = "\n".join([f"⚠ {w}" for w in pick["warnings"]]) if pick["warnings"] else "None"
 
     return (
-        f"{index}. {confidence_label(pick['score'])} — {pick['score']}/100\n"
+        f"{index}. {confidence_label(pick['score'], pick['margin'])} — {pick['score']}/100\n"
         f"{format_leg(pick)}\n"
         f"Trainer: {trainer}\n"
         f"Dominance: {dominance_label(pick['margin'])}\n"
@@ -170,7 +170,7 @@ def build_best_bets_message(target_date=None, track_search=None):
 
     msg += "🧾 4 API-Keeper Markets\n"
     for i, pick in enumerate(ranked[:4], start=1):
-        msg += f"{i}. {format_leg(pick)} — {confidence_label(pick['score'])}\n"
+        msg += f"{i}. {format_leg(pick)} — {confidence_label(pick['score'], pick['margin'])\n"
 
     msg += "\nStake idea: tiny stakes until results are tracked."
     return msg

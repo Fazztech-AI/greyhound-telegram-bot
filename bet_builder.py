@@ -258,11 +258,104 @@ def format_same_race_top4(pick):
 
     return msg
 
+def race_trust_score(pick):
+    score = 50
+    warnings = []
 
+    margin = pick["margin"]
+    field_size = pick["field_size"]
+    scored = pick["full_rankings"]
+
+    if margin >= 20:
+        score += 25
+    elif margin >= 10:
+        score += 15
+    elif margin >= 5:
+        score += 5
+    else:
+        score -= 20
+        warnings.append("Tight race")
+
+    if field_size >= 7:
+        score += 10
+    elif field_size == 6:
+        score += 5
+    elif field_size <= 5:
+        score -= 10
+        warnings.append("Small field")
+
+    no_form_count = 0
+    weak_form_count = 0
+
+    for item in scored:
+        runner = item[1]
+        form_count = runner.get("totalFormCount")
+
+        try:
+            form_count = int(form_count)
+            if form_count == 0:
+                no_form_count += 1
+            elif form_count < 5:
+                weak_form_count += 1
+        except Exception:
+            weak_form_count += 1
+
+    if no_form_count >= 2:
+        score -= 20
+        warnings.append("Multiple no-form runners")
+    elif no_form_count == 1:
+        score -= 8
+        warnings.append("One no-form runner")
+
+    if weak_form_count >= 3:
+        score -= 10
+        warnings.append("Weak exposed form")
+
+    if pick["score"] >= 75:
+        score += 10
+    elif pick["score"] < 50:
+        score -= 10
+
+    score = max(0, min(100, round(score, 1)))
+
+    if score >= 80:
+        label = "🟢 High trust"
+    elif score >= 65:
+        label = "🟡 Playable"
+    elif score >= 50:
+        label = "🟠 Caution"
+    else:
+        label = "🔴 Low trust"
+
+    return score, label, warnings
+
+
+def final_recommendation(pick):
+    trust, trust_label, warnings = race_trust_score(pick)
+
+    if pick["score"] >= 75 and pick["margin"] >= 15 and trust >= 75:
+        return "✅ Strong single candidate / multi anchor"
+
+    if pick["score"] >= 65 and pick["margin"] >= 8 and trust >= 65:
+        return "✅ Single candidate if odds are worth it"
+
+    if pick["score"] >= 60 and trust >= 60:
+        return "🧱 Multi anchor candidate"
+
+    if trust < 50:
+        return "🚫 Avoid / race too messy"
+
+    return "⚠️ Small stake only"
+    
 def format_short_pick(pick, index=None):
     prefix = f"{index}. " if index is not None else ""
     label = confidence_label(pick["score"], pick["margin"])
-    return f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100"
+    trust, trust_label, warnings = race_trust_score(pick)
+
+    return (
+        f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100\n"
+        f"Race trust: {trust}/100 {trust_label}"
+    )
 
 
 def format_detailed_pick(pick, index=None):
@@ -278,6 +371,8 @@ def format_detailed_pick(pick, index=None):
 
     label = confidence_label(pick["score"], pick["margin"])
     dominance = dominance_label(pick["margin"])
+    trust, trust_label, trust_warnings = race_trust_score(pick)
+recommendation = final_recommendation(pick)
     risk = race_risk_label(pick["score"], pick["margin"], pick["field_size"])
     bet_type = suggested_bet_type(pick["score"], pick["margin"])
 
@@ -289,6 +384,8 @@ def format_detailed_pick(pick, index=None):
         f"Trainer: {trainer}\n"
         f"Active runners: {pick['field_size']}\n"
         f"Dominance: {dominance}\n"
+        f"Race trust: {trust}/100 {trust_label}\n"
+f"Final recommendation: {recommendation}\n"
         f"Race risk: {risk}\n"
         f"Suggested single: {bet_type}\n"
         f"Multi use: {'Anchor leg candidate' if is_safe_multi_leg(pick) else 'Not ideal'}\n\n"
@@ -315,24 +412,30 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "Finished races and scratched runners are filtered out.\n\n"
 
     strong_singles = [
-        p for p in ranked
-        if p["score"] >= 65 and p["margin"] >= 8
-    ][:6]
+    p for p in ranked
+    if p["score"] >= 65
+    and p["margin"] >= 8
+    and race_trust_score(p)[0] >= 65
+][:6]
 
-    multi_anchors = [
-        p for p in ranked
-        if p["score"] >= 70 and p["margin"] >= 10
-    ][:6]
+multi_anchors = [
+    p for p in ranked
+    if p["score"] >= 60
+    and race_trust_score(p)[0] >= 60
+][:6]
 
-    top4_angles = [
-        p for p in ranked
-        if get_same_race_top4_angle(p) is not None
-    ][:5]
+top4_angles = [
+    p for p in ranked
+    if get_same_race_top4_angle(p) is not None
+    and race_trust_score(p)[0] >= 60
+][:5]
 
-    avoid_races = [
-        p for p in ranked
-        if p["margin"] < 5 or p["score"] < 50
-    ][:8]
+avoid_races = [
+    p for p in ranked
+    if p["margin"] < 5
+    or p["score"] < 50
+    or race_trust_score(p)[0] < 50
+][:8]
 
     msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"

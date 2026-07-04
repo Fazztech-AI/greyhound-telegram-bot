@@ -402,95 +402,95 @@ def format_detailed_pick(pick, index=None):
 
     return msg
 
+
 def build_daily_betting_plan(ranked, target_date, track_search=None):
-title = f"🐕 DAILY BETTING PLAN — {target_date}"
-if track_search:
-title += f"\nTrack search: {track_search}"
+    title = f"🐕 DAILY BETTING PLAN — {target_date}"
+    if track_search:
+        title += f"\nTrack search: {track_search}"
 
-msg = title + "\n\n"  
-msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"  
-msg += "Singles: use only when price is worth it.\n"  
-msg += "Multi anchors: can still be useful even if under $1.50.\n"  
-msg += "Finished races and scratched runners are filtered out.\n\n"  
+    msg = title + "\n\n"
+    msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"
+    msg += "Singles: use only when price is worth it.\n"
+    msg += "Multi anchors: can still be useful even if under $1.50.\n"
+    msg += "Finished races and scratched runners are filtered out.\n\n"
 
-strong_singles = [  
-p for p in ranked  
-if p["score"] >= 65  
-and p["margin"] >= 8  
-and race_trust_score(p)[0] >= 65
+    strong_singles = [
+        p for p in ranked
+        if p["score"] >= 65
+        and p["margin"] >= 8
+        and race_trust_score(p)[0] >= 65
+    ][:6]
 
-][:6]
+    multi_anchors = [
+        p for p in ranked
+        if p["score"] >= 60
+        and race_trust_score(p)[0] >= 60
+    ][:6]
 
-multi_anchors = [
-p for p in ranked
-if p["score"] >= 60
-and race_trust_score(p)[0] >= 60
-][:6]
+    top4_angles = [
+        p for p in ranked
+        if get_same_race_top4_angle(p) is not None
+        and race_trust_score(p)[0] >= 60
+    ][:5]
 
-top4_angles = [
-p for p in ranked
-if get_same_race_top4_angle(p) is not None
-and race_trust_score(p)[0] >= 60
-][:5]
+    avoid_races = [
+        p for p in ranked
+        if p["margin"] < 5
+        or p["score"] < 50
+        or race_trust_score(p)[0] < 50
+    ][:8]
 
-avoid_races = [
-p for p in ranked
-if p["margin"] < 5
-or p["score"] < 50
-or race_trust_score(p)[0] < 50
-][:8]
+    msg += "🔥 STRONG SINGLE CANDIDATES\n"
+    msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
 
-msg += "🔥 STRONG SINGLE CANDIDATES\n"  
-msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"  
+    if strong_singles:
+        for i, pick in enumerate(strong_singles, start=1):
+            msg += format_short_pick(pick, i) + "\n"
+    else:
+        msg += "No strong single candidates found.\n"
 
-if strong_singles:  
-    for i, pick in enumerate(strong_singles, start=1):  
-        msg += format_short_pick(pick, i) + "\n"  
-else:  
-    msg += "No strong single candidates found.\n"  
+    msg += "\n━━━━━━━━━━━━━━\n\n"
 
-msg += "\n━━━━━━━━━━━━━━\n\n"  
+    msg += "🧱 MULTI ANCHORS\n"
+    msg += "High-confidence runners that may be too short as singles but useful in multis.\n\n"
 
-msg += "🧱 MULTI ANCHORS\n"  
-msg += "High-confidence runners that may be too short as singles but useful in multis.\n\n"  
+    if multi_anchors:
+        for i, pick in enumerate(multi_anchors, start=1):
+            msg += format_short_pick(pick, i) + "\n"
+    else:
+        msg += "No strong multi anchors found.\n"
 
-if multi_anchors:  
-    for i, pick in enumerate(multi_anchors, start=1):  
-        msg += format_short_pick(pick, i) + "\n"  
-else:  
-    msg += "No strong multi anchors found.\n"  
+    msg += "\n━━━━━━━━━━━━━━\n\n"
 
-msg += "\n━━━━━━━━━━━━━━\n\n"  
+    msg += "🏁 SAME RACE TOP 4 ANGLES\n"
+    msg += "Best for 6-runner races. Use model top 3 to finish Top 4.\n\n"
 
-msg += "🏁 SAME RACE TOP 4 ANGLES\n"  
-msg += "Best for 6-runner races. Use model top 3 to finish Top 4.\n\n"  
+    if top4_angles:
+        for i, pick in enumerate(top4_angles, start=1):
+            angle = get_same_race_top4_angle(pick)
+            msg += f"{i}. {format_leg(pick)}\n"
+            msg += f"Setup: {angle['risk']}\n"
+            msg += "Use: "
+            msg += ", ".join(format_runner_short(item[1]) for item in angle["top3"])
+            msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"
+    else:
+        msg += "No strong 6-runner Top 4 setups found.\n"
 
-if top4_angles:  
-    for i, pick in enumerate(top4_angles, start=1):  
-        angle = get_same_race_top4_angle(pick)  
-        msg += f"{i}. {format_leg(pick)}\n"  
-        msg += f"Setup: {angle['risk']}\n"  
-        msg += "Use: "  
-        msg += ", ".join([format_runner_short(item[1]) for item in angle["top3"]])  
-        msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"  
-else:  
-    msg += "No strong 6-runner Top 4 setups found.\n"  
+    msg += "━━━━━━━━━━━━━━\n\n"
 
-msg += "━━━━━━━━━━━━━━\n\n"  
+    msg += "🚫 AVOID / MESSY RACES\n"
+    msg += "Low edge or weak model confidence. Be careful with these.\n\n"
 
-msg += "🚫 AVOID / MESSY RACES\n"  
-msg += "Low edge or weak model confidence. Be careful with these.\n\n"  
+    if avoid_races:
+        for i, pick in enumerate(avoid_races, start=1):
+            msg += f"{i}. {format_leg(pick)} — {dominance_label(pick['margin'])}\n"
+    else:
+        msg += "No obvious messy races from the top-ranked list.\n"
 
-if avoid_races:  
-    for i, pick in enumerate(avoid_races, start=1):  
-        msg += f"{i}. {format_leg(pick)} — {dominance_label(pick['margin'])}\n"  
-else:  
-    msg += "No obvious messy races from the top-ranked list.\n"  
+    msg += "\nUse /race Track RaceNumber for a full race breakdown."
 
-msg += "\nUse /race Track RaceNumber for a full race breakdown."  
-
-return msg[:4000]
-
+    return msg[:4000]
+    
 def build_best_bets_message(target_date=None, track_search=None):
 if target_date is None:
 target_date = melbourne_today()

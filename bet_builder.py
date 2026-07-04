@@ -385,7 +385,7 @@ recommendation = final_recommendation(pick)
         f"Active runners: {pick['field_size']}\n"
         f"Dominance: {dominance}\n"
         f"Race trust: {trust}/100 {trust_label}\n"
-f"Final recommendation: {recommendation}\n"
+        f"Final recommendation: {recommendation}\n"
         f"Race risk: {risk}\n"
         f"Suggested single: {bet_type}\n"
         f"Multi use: {'Anchor leg candidate' if is_safe_multi_leg(pick) else 'Not ideal'}\n\n"

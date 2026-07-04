@@ -44,11 +44,11 @@ def race_risk_label(score, margin, field_size):
 
 def suggested_bet_type(score, margin):
     if score >= 75 and margin >= 15:
-        return "Win / Place"
+        return "Win / Place if odds are $1.50+"
     if score >= 60 and margin >= 8:
-        return "Place / Top 2 style"
+        return "Place / Top 2 style if odds are $1.50+"
     if score >= 45:
-        return "Tiny place only"
+        return "Tiny place only if odds are $1.50+"
     return "Skip unless tiny API-keeper bet"
 
 def score_runner(runner, field):

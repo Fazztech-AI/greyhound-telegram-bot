@@ -31,45 +31,49 @@ def parse_race_start(race):
         return None
 
 def race_is_on_target_date(race, target_date):
-start = parse_race_start(race)
-if not start:
-return True
+    start = parse_race_start(race)
+    if not start:
+        return True
 
-return start.date() == target_date
+    return start.date() == target_date
+
 
 def race_has_started(race, target_date):
-if target_date != melbourne_today():
-return False
+    if target_date != melbourne_today():
+        return False
 
-start = parse_race_start(race)  
-if not start:  
-    return False  
+    start = parse_race_start(race)
+    if not start:
+        return False
 
-return start <= melbourne_now()
+    return start <= melbourne_now()
+
 
 def race_is_resulted_or_invalid(race):
-return (
-race.get("isRaceResultEntered") is True
-or race.get("raceResultEntered") is True
-or race.get("abandoned") is True
-or race.get("isAbandoned") is True
-)
+    return (
+        race.get("isRaceResultEntered") is True
+        or race.get("raceResultEntered") is True
+        or race.get("abandoned") is True
+        or race.get("isAbandoned") is True
+    )
+
 
 def get_track_name(race, runners=None):
-if runners:
-track = runners[0].get("track")
-if track:
-return str(track)
+    if runners:
+        track = runners[0].get("track")
+        if track:
+            return str(track)
 
-name = str(race.get("name", ""))  
-match = re.search(r"@([A-Z]+)", name)  
-if match:  
-    return match.group(1)  
+    name = str(race.get("name", ""))
+    match = re.search(r"@([A-Z]+)", name)
+    if match:
+        return match.group(1)
 
-return "Unknown Track"
+    return "Unknown Track"
+
 
 def track_matches(track_name, search):
-return normalise(search) in normalise(track_name)
+    return normalise(search) in normalise(track_name)
 
 def build_meeting_track_map(races):
 meeting_first_race = {}

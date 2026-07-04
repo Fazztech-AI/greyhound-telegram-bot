@@ -362,46 +362,45 @@ return (
 )
 
 def format_detailed_pick(pick, index=None):
-runner = pick["runner"]
-trainer = runner.get("trainerName", "Unknown Trainer")
+    runner = pick["runner"]
+    trainer = runner.get("trainerName", "Unknown Trainer")
 
-pros_text = "\n".join([f"✔ {p}" for p in pick["pros"]])  
-warnings_text = (  
-    "\n".join([f"⚠ {w}" for w in pick["warnings"]])  
-    if pick["warnings"]  
-    else "None"  
-)  
+    pros_text = "\n".join([f"✔ {p}" for p in pick["pros"]])
+    warnings_text = (
+        "\n".join([f"⚠ {w}" for w in pick["warnings"]])
+        if pick["warnings"]
+        else "None"
+    )
 
-label = confidence_label(pick["score"], pick["margin"])  
-dominance = dominance_label(pick["margin"])  
-trust, trust_label, trust_warnings = race_trust_score(pick)
+    label = confidence_label(pick["score"], pick["margin"])
+    dominance = dominance_label(pick["margin"])
+    trust, trust_label, trust_warnings = race_trust_score(pick)
+    recommendation = final_recommendation(pick)
+    risk = race_risk_label(pick["score"], pick["margin"], pick["field_size"])
+    bet_type = suggested_bet_type(pick["score"], pick["margin"])
 
-recommendation = final_recommendation(pick)
-risk = race_risk_label(pick["score"], pick["margin"], pick["field_size"])
-bet_type = suggested_bet_type(pick["score"], pick["margin"])
+    prefix = f"{index}. " if index is not None else ""
 
-prefix = f"{index}. " if index is not None else ""  
+    msg = (
+        f"{prefix}{label} — {pick['score']}/100\n"
+        f"{format_leg(pick)}\n"
+        f"Trainer: {trainer}\n"
+        f"Active runners: {pick['field_size']}\n"
+        f"Dominance: {dominance}\n"
+        f"Race trust: {trust}/100 {trust_label}\n"
+        f"Final recommendation: {recommendation}\n"
+        f"Race risk: {risk}\n"
+        f"Suggested single: {bet_type}\n"
+        f"Multi use: {'Anchor leg candidate' if is_safe_multi_leg(pick) else 'Not ideal'}\n\n"
+        f"Pros:\n{pros_text}\n"
+        f"Warnings:\n{warnings_text}\n"
+    )
 
-msg = (  
-    f"{prefix}{label} — {pick['score']}/100\n"  
-    f"{format_leg(pick)}\n"  
-    f"Trainer: {trainer}\n"  
-    f"Active runners: {pick['field_size']}\n"  
-    f"Dominance: {dominance}\n"  
-    f"Race trust: {trust}/100 {trust_label}\n"  
-    f"Final recommendation: {recommendation}\n"  
-    f"Race risk: {risk}\n"  
-    f"Suggested single: {bet_type}\n"  
-    f"Multi use: {'Anchor leg candidate' if is_safe_multi_leg(pick) else 'Not ideal'}\n\n"  
-    f"Pros:\n{pros_text}\n"  
-    f"Warnings:\n{warnings_text}\n"  
-)  
+    top4 = format_same_race_top4(pick)
+    if top4:
+        msg += "\n" + top4
 
-top4 = format_same_race_top4(pick)  
-if top4:  
-    msg += "\n" + top4  
-
-return msg
+    return msg
 
 def build_daily_betting_plan(ranked, target_date, track_search=None):
 title = f"🐕 DAILY BETTING PLAN — {target_date}"

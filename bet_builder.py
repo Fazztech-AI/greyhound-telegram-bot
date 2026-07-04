@@ -74,7 +74,8 @@ def get_track_name(race, runners=None):
 def track_matches(track_name, search):
     return normalise(search) in normalise(track_name)
 
-    def build_meeting_track_map(races):
+
+def build_meeting_track_map(races):
     meeting_first_race = {}
 
     for race in races:

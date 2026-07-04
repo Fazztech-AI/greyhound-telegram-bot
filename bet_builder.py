@@ -346,7 +346,7 @@ def final_recommendation(pick):
 
     return "⚠️ Small stake only"
 
-def def format_short_pick(pick, index=None):
+def format_short_pick(pick, index=None):
     prefix = f"{index}. " if index is not None else ""
     label = confidence_label(pick["score"], pick["margin"])
     trust, trust_label, warnings = race_trust_score(pick)

@@ -239,23 +239,23 @@ return {
 }
 
 def format_same_race_top4(pick):
-angle = get_same_race_top4_angle(pick)
-if not angle:
-return ""
+    angle = get_same_race_top4_angle(pick)
+    if not angle:
+        return ""
 
-msg = "🏁 SAME RACE TOP 4 ANGLE\n"  
-msg += f"Active runners: {pick['field_size']}\n"  
-msg += f"Setup: {angle['risk']}\n"  
-msg += "Use model top 3 to finish Top 4.\n\n"  
+    msg = "🏁 SAME RACE TOP 4 ANGLE\n"
+    msg += f"Active runners: {pick['field_size']}\n"
+    msg += f"Setup: {angle['risk']}\n"
+    msg += "Use model top 3 to finish Top 4.\n\n"
 
-for i, item in enumerate(angle["top3"], start=1):  
-    score, runner, pros, warnings = item  
-    msg += f"{i}. {format_runner_short(runner)} — {score}/100\n"  
+    for i, item in enumerate(angle["top3"], start=1):
+        score, runner, pros, warnings = item
+        msg += f"{i}. {format_runner_short(runner)} — {score}/100\n"
 
-msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n"  
-msg += "Warning: re-check scratchings and market rules before betting.\n"  
+    msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n"
+    msg += "Warning: re-check scratchings and market rules before betting.\n"
 
-return msg
+    return msg
 
 def race_trust_score(pick):
 score = 50

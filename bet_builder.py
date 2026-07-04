@@ -74,7 +74,7 @@ def get_track_name(race, runners=None):
 
 
     def build_meeting_track_map(races):
-    meeting_first_race = {}
+        meeting_first_race = {}
 
     for race in races:
         meeting_id = race.get("meetingId")

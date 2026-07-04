@@ -74,8 +74,7 @@ def scan_ranked(target_date=None, track_search=None):
     ranked = []
 
     for race in races:
-        race_id = race.get("raceId")
-        runners = runners_by_race.get(race_id, [])
+        runners = runners_by_race.get(race.get("raceId"), [])
 
         active = [
             r for r in runners
@@ -132,28 +131,28 @@ def format_leg(pick):
     return f"{pick['track']} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
 
 
-def single_suitability(pick):
-    score = pick["score"]
-    margin = pick["margin"]
+def format_runner_short(runner):
+    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
+    dog = runner.get("dogName", "Unknown Dog")
+    return f"Box {box} {dog}"
 
-    if score >= 75 and margin >= 15:
+
+def single_suitability(pick):
+    if pick["score"] >= 75 and pick["margin"] >= 15:
         return "⭐⭐⭐⭐⭐"
-    if score >= 65 and margin >= 10:
+    if pick["score"] >= 65 and pick["margin"] >= 10:
         return "⭐⭐⭐⭐"
-    if score >= 55 and margin >= 5:
+    if pick["score"] >= 55 and pick["margin"] >= 5:
         return "⭐⭐⭐"
     return "⭐⭐"
 
 
 def multi_suitability(pick):
-    score = pick["score"]
-    margin = pick["margin"]
-
-    if score >= 70 and margin >= 10:
+    if pick["score"] >= 70 and pick["margin"] >= 10:
         return "⭐⭐⭐⭐⭐"
-    if score >= 60 and margin >= 5:
+    if pick["score"] >= 60 and pick["margin"] >= 5:
         return "⭐⭐⭐⭐"
-    if score >= 50:
+    if pick["score"] >= 50:
         return "⭐⭐⭐"
     return "⭐⭐"
 
@@ -172,6 +171,66 @@ def is_multi_anchor(pick):
 
 def is_race_to_avoid(pick):
     return pick["margin"] < 5 or pick["score"] < 50
+
+
+def get_same_race_top4_angle(pick):
+    scored = pick["full_rankings"]
+    active_count = pick["field_size"]
+
+    if active_count != 6:
+        return None
+
+    if len(scored) < 6:
+        return None
+
+    top3 = scored[:3]
+    fourth = scored[3]
+    fifth = scored[4]
+    sixth = scored[5]
+
+    top3_scores = [item[0] for item in top3]
+    third_score = top3_scores[-1]
+    fifth_score = fifth[0]
+    sixth_score = sixth[0]
+
+    gap_to_danger = round(third_score - fifth_score, 1)
+    bottom_gap = round(third_score - max(fifth_score, sixth_score), 1)
+
+    if gap_to_danger < 4:
+        risk = "⚠️ Risky — top 3 are not far enough ahead"
+    elif gap_to_danger >= 10:
+        risk = "🟢 Strong Top 4 setup"
+    else:
+        risk = "🟡 Playable Top 4 setup"
+
+    return {
+        "top3": top3,
+        "gap_to_danger": gap_to_danger,
+        "bottom_gap": bottom_gap,
+        "risk": risk,
+    }
+
+
+def format_same_race_top4(pick):
+    angle = get_same_race_top4_angle(pick)
+
+    if not angle:
+        return ""
+
+    msg = "🏁 SAME RACE TOP 4 ANGLE\n"
+    msg += f"Active runners: {pick['field_size']}\n"
+    msg += f"Setup: {angle['risk']}\n"
+    msg += "Idea: use model top 3 to finish Top 4 in the same race.\n\n"
+
+    msg += "Use these 3:\n"
+    for i, item in enumerate(angle["top3"], start=1):
+        score, runner, pros, warnings = item
+        msg += f"{i}. {format_runner_short(runner)} — {score}/100\n"
+
+    msg += f"\nGap from 3rd pick to danger: {angle['gap_to_danger']} pts\n"
+    msg += "Warning: check Sportsbet/TAB market rules after scratchings. If no third dividend or market changes, reassess.\n"
+
+    return msg
 
 
 def format_short_pick(pick, index=None):
@@ -195,10 +254,11 @@ def format_detailed_pick(pick, index=None):
     dominance = dominance_label(pick["margin"])
     risk = race_risk_label(pick["score"], pick["margin"], pick["field_size"])
     bet_type = suggested_bet_type(pick["score"], pick["margin"])
+    top4_text = format_same_race_top4(pick)
 
     prefix = f"{index}. " if index is not None else ""
 
-    return (
+    msg = (
         f"{prefix}{label} — {pick['score']}/100\n"
         f"{format_leg(pick)}\n"
         f"Trainer: {trainer}\n"
@@ -211,6 +271,11 @@ def format_detailed_pick(pick, index=None):
         f"Pros:\n{pros_text}\n"
         f"Warnings:\n{warnings_text}\n"
     )
+
+    if top4_text:
+        msg += "\n" + top4_text
+
+    return msg
 
 
 def build_daily_betting_plan(ranked, target_date, track_search=None):
@@ -227,6 +292,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     anchor_singles = [p for p in ranked if is_anchor_single(p)][:5]
     safe_multi_legs = [p for p in ranked if is_safe_multi_leg(p)][:4]
     multi_anchors = [p for p in ranked if is_multi_anchor(p)][:5]
+    top4_angles = [p for p in ranked if get_same_race_top4_angle(p) is not None][:5]
     avoid_races = [p for p in ranked if is_race_to_avoid(p)][:6]
 
     msg += "⭐ BEST BET OF THE DAY\n\n"
@@ -253,6 +319,21 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         msg += "No safe multi found.\n"
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
+    msg += "🏁 SAME RACE TOP 4 ANGLES\n"
+    msg += "Best for 6-runner races. Pick model top 3 to finish Top 4.\n\n"
+
+    if top4_angles:
+        for i, pick in enumerate(top4_angles, start=1):
+            angle = get_same_race_top4_angle(pick)
+            msg += f"{i}. {format_leg(pick)}\n"
+            msg += f"Setup: {angle['risk']}\n"
+            msg += "Use: "
+            msg += ", ".join([format_runner_short(item[1]) for item in angle["top3"]])
+            msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"
+    else:
+        msg += "No strong 6-runner Top 4 setups found.\n"
+
+    msg += "━━━━━━━━━━━━━━\n\n"
     msg += "🧱 MULTI ANCHORS\n"
     msg += "High-confidence runners that can still be useful even if under $1.50.\n\n"
 
@@ -269,15 +350,6 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     for i, pick in enumerate(ranked[:4], start=1):
         label = confidence_label(pick["score"], pick["margin"])
         msg += f"{i}. {format_leg(pick)} — {label}\n"
-
-    msg += "\n━━━━━━━━━━━━━━\n\n"
-    msg += "🚫 RACES TO BE CAREFUL WITH\n"
-
-    if avoid_races:
-        for i, pick in enumerate(avoid_races, start=1):
-            msg += f"{i}. {format_leg(pick)} — {dominance_label(pick['margin'])}\n"
-    else:
-        msg += "No obvious avoid notes from top-ranked races.\n"
 
     msg += "\nStake idea: tiny stakes only until results are tracked."
 
@@ -344,17 +416,14 @@ def build_race_message(track_search, race_number, target_date=None):
 
     msg = f"🐕 FULL RACE RANKING — {pick['track']} R{race_number}\n"
     msg += f"Date: {target_date}\n"
-    msg += f"Distance: {pick['race'].get('distance', '?')}m\n\n"
+    msg += f"Distance: {pick['race'].get('distance', '?')}m\n"
+    msg += f"Active runners: {pick['field_size']}\n\n"
 
     for i, item in enumerate(scored, start=1):
         score, runner, pros, warnings = item
-        box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
-        dog = runner.get("dogName", "Unknown Dog")
-        trainer = runner.get("trainerName", "Unknown Trainer")
         label = confidence_label(score)
 
-        msg += f"{i}. Box {box} {dog} — {score}/100 {label}\n"
-        msg += f"Trainer: {trainer}\n"
+        msg += f"{i}. {format_runner_short(runner)} — {score}/100 {label}\n"
 
         if pros:
             msg += f"✔ {pros[0]}\n"
@@ -365,6 +434,10 @@ def build_race_message(track_search, race_number, target_date=None):
         msg += "\n"
 
     msg += f"Suggested bet: {suggested_bet_type(pick['score'], pick['margin'])}\n"
-    msg += f"Race risk: {race_risk_label(pick['score'], pick['margin'], pick['field_size'])}"
+    msg += f"Race risk: {race_risk_label(pick['score'], pick['margin'], pick['field_size'])}\n\n"
+
+    top4_text = format_same_race_top4(pick)
+    if top4_text:
+        msg += top4_text
 
     return msg[:4000]

@@ -330,21 +330,21 @@ def race_trust_score(pick):
     return score, label, warnings
     
 def final_recommendation(pick):
-trust, trust_label, warnings = race_trust_score(pick)
+    trust, trust_label, warnings = race_trust_score(pick)
 
-if pick["score"] >= 75 and pick["margin"] >= 15 and trust >= 75:  
-    return "✅ Strong single candidate / multi anchor"  
+    if pick["score"] >= 75 and pick["margin"] >= 15 and trust >= 75:
+        return "✅ Strong single candidate / multi anchor"
 
-if pick["score"] >= 65 and pick["margin"] >= 8 and trust >= 65:  
-    return "✅ Single candidate if odds are worth it"  
+    if pick["score"] >= 65 and pick["margin"] >= 8 and trust >= 65:
+        return "✅ Single candidate if odds are worth it"
 
-if pick["score"] >= 60 and trust >= 60:  
-    return "🧱 Multi anchor candidate"  
+    if pick["score"] >= 60 and trust >= 60:
+        return "🧱 Multi anchor candidate"
 
-if trust < 50:  
-    return "🚫 Avoid / race too messy"  
+    if trust < 50:
+        return "🚫 Avoid / race too messy"
 
-return "⚠️ Small stake only"
+    return "⚠️ Small stake only"
 
 def format_short_pick(pick, index=None):
 prefix = f"{index}. " if index is not None else ""

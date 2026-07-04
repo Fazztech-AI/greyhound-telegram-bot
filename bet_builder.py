@@ -1,9 +1,8 @@
 import re
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
-from topaz_client import (
-    get_all_races_for_date,
-    get_runners_for_races_parallel,
-)
+from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
 from scorer import (
     score_runner,
     confidence_label,
@@ -12,6 +11,44 @@ from scorer import (
     suggested_bet_type,
 )
 from utils import normalise, melbourne_today
+
+MELBOURNE_TZ = ZoneInfo("Australia/Melbourne")
+
+
+def melbourne_now():
+    return datetime.now(MELBOURNE_TZ)
+
+
+def parse_race_start(race):
+    raw = race.get("raceStart")
+    if not raw:
+        return None
+
+    try:
+        raw = str(raw).replace("Z", "+00:00")
+        return datetime.fromisoformat(raw).astimezone(MELBOURNE_TZ)
+    except Exception:
+        return None
+
+
+def race_has_started(race, target_date):
+    if target_date != melbourne_today():
+        return False
+
+    start = parse_race_start(race)
+    if not start:
+        return False
+
+    return start <= melbourne_now()
+
+
+def race_is_resulted_or_invalid(race):
+    return (
+        race.get("isRaceResultEntered") is True
+        or race.get("raceResultEntered") is True
+        or race.get("abandoned") is True
+        or race.get("isAbandoned") is True
+    )
 
 
 def get_track_name(race, runners=None):
@@ -52,6 +89,14 @@ def build_meeting_track_map(races):
     return track_map
 
 
+def active_runners_only(runners):
+    return [
+        r for r in runners
+        if r.get("scratched") is not True
+        and r.get("isLateScratching") is not True
+    ]
+
+
 def scan_ranked(target_date=None, track_search=None):
     if target_date is None:
         target_date = melbourne_today()
@@ -59,28 +104,31 @@ def scan_ranked(target_date=None, track_search=None):
     races = get_all_races_for_date(target_date)
     meeting_track_map = build_meeting_track_map(races)
 
-    if track_search:
-        races = [
-            race for race in races
-            if track_matches(
-                meeting_track_map.get(race.get("meetingId"), "Unknown Track"),
-                track_search,
-            )
-        ]
+    filtered_races = []
 
-    race_ids = [race.get("raceId") for race in races]
+    for race in races:
+        if race_is_resulted_or_invalid(race):
+            continue
+
+        if race_has_started(race, target_date):
+            continue
+
+        if track_search:
+            track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
+            if not track_matches(track, track_search):
+                continue
+
+        filtered_races.append(race)
+
+    race_ids = [race.get("raceId") for race in filtered_races]
     runners_by_race = get_runners_for_races_parallel(race_ids, max_workers=8)
 
     ranked = []
 
-    for race in races:
-        runners = runners_by_race.get(race.get("raceId"), [])
-
-        active = [
-            r for r in runners
-            if r.get("scratched") is not True
-            and r.get("isLateScratching") is not True
-        ]
+    for race in filtered_races:
+        race_id = race.get("raceId")
+        runners = runners_by_race.get(race_id, [])
+        active = active_runners_only(runners)
 
         if len(active) < 4:
             continue
@@ -90,6 +138,7 @@ def scan_ranked(target_date=None, track_search=None):
             track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
 
         scored = []
+
         for runner in active:
             score, pros, warnings = score_runner(runner, active)
             scored.append((score, runner, pros, warnings))
@@ -117,6 +166,12 @@ def scan_ranked(target_date=None, track_search=None):
     return ranked
 
 
+def format_runner_short(runner):
+    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
+    dog = runner.get("dogName", "Unknown Dog")
+    return f"Box {box} {dog}"
+
+
 def format_leg(pick):
     race = pick["race"]
     runner = pick["runner"]
@@ -125,36 +180,10 @@ def format_leg(pick):
     authority = race.get("authority", "?")
     distance = race.get("distance", "?")
     start = race.get("startTime", "")
-    dog = runner.get("dogName", "Unknown Dog")
     box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
+    dog = runner.get("dogName", "Unknown Dog")
 
     return f"{pick['track']} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
-
-
-def format_runner_short(runner):
-    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
-    dog = runner.get("dogName", "Unknown Dog")
-    return f"Box {box} {dog}"
-
-
-def single_suitability(pick):
-    if pick["score"] >= 75 and pick["margin"] >= 15:
-        return "⭐⭐⭐⭐⭐"
-    if pick["score"] >= 65 and pick["margin"] >= 10:
-        return "⭐⭐⭐⭐"
-    if pick["score"] >= 55 and pick["margin"] >= 5:
-        return "⭐⭐⭐"
-    return "⭐⭐"
-
-
-def multi_suitability(pick):
-    if pick["score"] >= 70 and pick["margin"] >= 10:
-        return "⭐⭐⭐⭐⭐"
-    if pick["score"] >= 60 and pick["margin"] >= 5:
-        return "⭐⭐⭐⭐"
-    if pick["score"] >= 50:
-        return "⭐⭐⭐"
-    return "⭐⭐"
 
 
 def is_anchor_single(pick):
@@ -175,60 +204,47 @@ def is_race_to_avoid(pick):
 
 def get_same_race_top4_angle(pick):
     scored = pick["full_rankings"]
-    active_count = pick["field_size"]
 
-    if active_count != 6:
+    if pick["field_size"] != 6:
         return None
 
     if len(scored) < 6:
         return None
 
     top3 = scored[:3]
-    fourth = scored[3]
-    fifth = scored[4]
-    sixth = scored[5]
-
-    top3_scores = [item[0] for item in top3]
-    third_score = top3_scores[-1]
-    fifth_score = fifth[0]
-    sixth_score = sixth[0]
+    third_score = top3[2][0]
+    fifth_score = scored[4][0]
 
     gap_to_danger = round(third_score - fifth_score, 1)
-    bottom_gap = round(third_score - max(fifth_score, sixth_score), 1)
 
-    if gap_to_danger < 4:
-        risk = "⚠️ Risky — top 3 are not far enough ahead"
-    elif gap_to_danger >= 10:
-        risk = "🟢 Strong Top 4 setup"
-    else:
-        risk = "🟡 Playable Top 4 setup"
+    if gap_to_danger < 6:
+        return None
+
+    risk = "🟢 Strong Top 4 setup" if gap_to_danger >= 10 else "🟡 Playable Top 4 setup"
 
     return {
         "top3": top3,
         "gap_to_danger": gap_to_danger,
-        "bottom_gap": bottom_gap,
         "risk": risk,
     }
 
 
 def format_same_race_top4(pick):
     angle = get_same_race_top4_angle(pick)
-
     if not angle:
         return ""
 
     msg = "🏁 SAME RACE TOP 4 ANGLE\n"
     msg += f"Active runners: {pick['field_size']}\n"
     msg += f"Setup: {angle['risk']}\n"
-    msg += "Idea: use model top 3 to finish Top 4 in the same race.\n\n"
+    msg += "Use model top 3 to finish Top 4.\n\n"
 
-    msg += "Use these 3:\n"
     for i, item in enumerate(angle["top3"], start=1):
         score, runner, pros, warnings = item
         msg += f"{i}. {format_runner_short(runner)} — {score}/100\n"
 
-    msg += f"\nGap from 3rd pick to danger: {angle['gap_to_danger']} pts\n"
-    msg += "Warning: check Sportsbet/TAB market rules after scratchings. If no third dividend or market changes, reassess.\n"
+    msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n"
+    msg += "Warning: re-check scratchings and market rules before betting.\n"
 
     return msg
 
@@ -254,7 +270,6 @@ def format_detailed_pick(pick, index=None):
     dominance = dominance_label(pick["margin"])
     risk = race_risk_label(pick["score"], pick["margin"], pick["field_size"])
     bet_type = suggested_bet_type(pick["score"], pick["margin"])
-    top4_text = format_same_race_top4(pick)
 
     prefix = f"{index}. " if index is not None else ""
 
@@ -262,18 +277,18 @@ def format_detailed_pick(pick, index=None):
         f"{prefix}{label} — {pick['score']}/100\n"
         f"{format_leg(pick)}\n"
         f"Trainer: {trainer}\n"
+        f"Active runners: {pick['field_size']}\n"
         f"Dominance: {dominance}\n"
         f"Race risk: {risk}\n"
-        f"Single suitability: {single_suitability(pick)}\n"
-        f"Multi suitability: {multi_suitability(pick)}\n"
         f"Suggested single: {bet_type}\n"
         f"Multi use: {'Anchor leg candidate' if is_safe_multi_leg(pick) else 'Not ideal'}\n\n"
         f"Pros:\n{pros_text}\n"
         f"Warnings:\n{warnings_text}\n"
     )
 
-    if top4_text:
-        msg += "\n" + top4_text
+    top4 = format_same_race_top4(pick)
+    if top4:
+        msg += "\n" + top4
 
     return msg
 
@@ -285,8 +300,8 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     msg = title + "\n\n"
     msg += "Singles rule: main singles only if live odds are $1.50+.\n"
-    msg += "Multi rule: sub-$1.50 runners can still be used as safe anchor legs.\n"
-    msg += "Topaz model only. Check live odds/scratchings before betting.\n\n"
+    msg += "Multi rule: sub-$1.50 runners can still be used as anchor legs.\n"
+    msg += "Finished races and scratched runners are filtered out.\n\n"
 
     best_bet = ranked[0]
     anchor_singles = [p for p in ranked if is_anchor_single(p)][:5]
@@ -310,17 +325,15 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
     msg += "🔒 SAFE MULTI\n"
-    msg += "These are the cleanest multi-leg candidates.\n\n"
 
     if len(safe_multi_legs) >= 2:
         for i, pick in enumerate(safe_multi_legs[:3], start=1):
-            msg += f"Leg {i}: {format_leg(pick)} — {multi_suitability(pick)}\n"
+            msg += f"Leg {i}: {format_leg(pick)} — {confidence_label(pick['score'], pick['margin'])}\n"
     else:
         msg += "No safe multi found.\n"
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
     msg += "🏁 SAME RACE TOP 4 ANGLES\n"
-    msg += "Best for 6-runner races. Pick model top 3 to finish Top 4.\n\n"
 
     if top4_angles:
         for i, pick in enumerate(top4_angles, start=1):
@@ -335,7 +348,6 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     msg += "━━━━━━━━━━━━━━\n\n"
     msg += "🧱 MULTI ANCHORS\n"
-    msg += "High-confidence runners that can still be useful even if under $1.50.\n\n"
 
     if multi_anchors:
         for i, pick in enumerate(multi_anchors, start=1):
@@ -344,14 +356,13 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         msg += "No dominant anchor legs found.\n"
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
-    msg += "🧾 4 API-KEEPER MARKETS\n"
-    msg += "Tiny stakes only if needed for API activity.\n\n"
+    msg += "🚫 RACES TO BE CAREFUL WITH\n"
 
-    for i, pick in enumerate(ranked[:4], start=1):
-        label = confidence_label(pick["score"], pick["margin"])
-        msg += f"{i}. {format_leg(pick)} — {label}\n"
-
-    msg += "\nStake idea: tiny stakes only until results are tracked."
+    if avoid_races:
+        for i, pick in enumerate(avoid_races, start=1):
+            msg += f"{i}. {format_leg(pick)} — {dominance_label(pick['margin'])}\n"
+    else:
+        msg += "No obvious avoid notes from top-ranked races.\n"
 
     return msg[:4000]
 
@@ -364,8 +375,8 @@ def build_best_bets_message(target_date=None, track_search=None):
 
     if not ranked:
         if track_search:
-            return f"No races found for '{track_search}' on {target_date}."
-        return f"No race/runner data found for {target_date}."
+            return f"No upcoming races found for '{track_search}' on {target_date}."
+        return f"No upcoming race/runner data found for {target_date}."
 
     return build_daily_betting_plan(ranked, target_date, track_search)
 
@@ -376,8 +387,14 @@ def build_tracks_message(target_date=None):
 
     races = get_all_races_for_date(target_date)
 
+    races = [
+        r for r in races
+        if not race_is_resulted_or_invalid(r)
+        and not race_has_started(r, target_date)
+    ]
+
     if not races:
-        return f"No tracks found for {target_date}."
+        return f"No upcoming tracks found for {target_date}."
 
     meeting_track_map = build_meeting_track_map(races)
     tracks = {}
@@ -387,10 +404,10 @@ def build_tracks_message(target_date=None):
         tracks.setdefault(track, 0)
         tracks[track] += 1
 
-    msg = f"🐕 Tracks racing on {target_date}\n\n"
+    msg = f"🐕 Upcoming tracks on {target_date}\n\n"
 
     for track, count in sorted(tracks.items()):
-        msg += f"• {track} — {count} races\n"
+        msg += f"• {track} — {count} upcoming races\n"
 
     msg += "\nUse: /track Geelong or /race Geelong 5"
 
@@ -409,7 +426,7 @@ def build_race_message(track_search, race_number, target_date=None):
     ]
 
     if not race_picks:
-        return f"No race found for {track_search} R{race_number} on {target_date}."
+        return f"No upcoming race found for {track_search} R{race_number} on {target_date}."
 
     pick = race_picks[0]
     scored = pick["full_rankings"]
@@ -436,8 +453,8 @@ def build_race_message(track_search, race_number, target_date=None):
     msg += f"Suggested bet: {suggested_bet_type(pick['score'], pick['margin'])}\n"
     msg += f"Race risk: {race_risk_label(pick['score'], pick['margin'], pick['field_size'])}\n\n"
 
-    top4_text = format_same_race_top4(pick)
-    if top4_text:
-        msg += top4_text
+    top4 = format_same_race_top4(pick)
+    if top4:
+        msg += top4
 
     return msg[:4000]

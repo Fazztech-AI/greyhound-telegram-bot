@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
@@ -29,6 +29,14 @@ def parse_race_start(race):
         return datetime.fromisoformat(raw).astimezone(MELBOURNE_TZ)
     except Exception:
         return None
+
+
+def race_is_on_target_date(race, target_date):
+    start = parse_race_start(race)
+    if not start:
+        return True
+
+    return start.date() == target_date
 
 
 def race_has_started(race, target_date):
@@ -110,6 +118,9 @@ def scan_ranked(target_date=None, track_search=None):
         if race_is_resulted_or_invalid(race):
             continue
 
+        if not race_is_on_target_date(race, target_date):
+            continue
+
         if race_has_started(race, target_date):
             continue
 
@@ -126,8 +137,7 @@ def scan_ranked(target_date=None, track_search=None):
     ranked = []
 
     for race in filtered_races:
-        race_id = race.get("raceId")
-        runners = runners_by_race.get(race_id, [])
+        runners = runners_by_race.get(race.get("raceId"), [])
         active = active_runners_only(runners)
 
         if len(active) < 4:
@@ -328,7 +338,8 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     if len(safe_multi_legs) >= 2:
         for i, pick in enumerate(safe_multi_legs[:3], start=1):
-            msg += f"Leg {i}: {format_leg(pick)} — {confidence_label(pick['score'], pick['margin'])}\n"
+            label = confidence_label(pick["score"], pick["margin"])
+            msg += f"Leg {i}: {format_leg(pick)} — {label}\n"
     else:
         msg += "No safe multi found.\n"
 
@@ -390,6 +401,7 @@ def build_tracks_message(target_date=None):
     races = [
         r for r in races
         if not race_is_resulted_or_invalid(r)
+        and race_is_on_target_date(r, target_date)
         and not race_has_started(r, target_date)
     ]
 

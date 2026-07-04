@@ -257,77 +257,78 @@ def format_same_race_top4(pick):
 
     return msg
 
+
 def race_trust_score(pick):
-score = 50
-warnings = []
+    score = 50
+    warnings = []
 
-margin = pick["margin"]  
-field_size = pick["field_size"]  
-scored = pick["full_rankings"]  
+    margin = pick["margin"]
+    field_size = pick["field_size"]
+    scored = pick["full_rankings"]
 
-if margin >= 20:  
-    score += 25  
-elif margin >= 10:  
-    score += 15  
-elif margin >= 5:  
-    score += 5  
-else:  
-    score -= 20  
-    warnings.append("Tight race")  
+    if margin >= 20:
+        score += 25
+    elif margin >= 10:
+        score += 15
+    elif margin >= 5:
+        score += 5
+    else:
+        score -= 20
+        warnings.append("Tight race")
 
-if field_size >= 7:  
-    score += 10  
-elif field_size == 6:  
-    score += 5  
-elif field_size <= 5:  
-    score -= 10  
-    warnings.append("Small field")  
+    if field_size >= 7:
+        score += 10
+    elif field_size == 6:
+        score += 5
+    elif field_size <= 5:
+        score -= 10
+        warnings.append("Small field")
 
-no_form_count = 0  
-weak_form_count = 0  
+    no_form_count = 0
+    weak_form_count = 0
 
-for item in scored:  
-    runner = item[1]  
-    form_count = runner.get("totalFormCount")  
+    for item in scored:
+        runner = item[1]
+        form_count = runner.get("totalFormCount")
 
-    try:  
-        form_count = int(form_count)  
-        if form_count == 0:  
-            no_form_count += 1  
-        elif form_count < 5:  
-            weak_form_count += 1  
-    except Exception:  
-        weak_form_count += 1  
+        try:
+            form_count = int(form_count)
+            if form_count == 0:
+                no_form_count += 1
+            elif form_count < 5:
+                weak_form_count += 1
+        except Exception:
+            weak_form_count += 1
 
-if no_form_count >= 2:  
-    score -= 20  
-    warnings.append("Multiple no-form runners")  
-elif no_form_count == 1:  
-    score -= 8  
-    warnings.append("One no-form runner")  
+    if no_form_count >= 2:
+        score -= 20
+        warnings.append("Multiple no-form runners")
+    elif no_form_count == 1:
+        score -= 8
+        warnings.append("One no-form runner")
 
-if weak_form_count >= 3:  
-    score -= 10  
-    warnings.append("Weak exposed form")  
+    if weak_form_count >= 3:
+        score -= 10
+        warnings.append("Weak exposed form")
 
-if pick["score"] >= 75:  
-    score += 10  
-elif pick["score"] < 50:  
-    score -= 10  
+    if pick["score"] >= 75:
+        score += 10
+    elif pick["score"] < 50:
+        score -= 10
 
-score = max(0, min(100, round(score, 1)))  
+    score = max(0, min(100, round(score, 1)))
 
-if score >= 80:  
-    label = "🟢 High trust"  
-elif score >= 65:  
-    label = "🟡 Playable"  
-elif score >= 50:  
-    label = "🟠 Caution"  
-else:  
-    label = "🔴 Low trust"  
+    if score >= 80:
+        label = "🟢 High trust"
+    elif score >= 65:
+        label = "🟡 Playable"
+    elif score >= 50:
+        label = "🟠 Caution"
+    else:
+        label = "🔴 Low trust"
 
-return score, label, warnings
-
+    return score, label, warnings
+    
 def final_recommendation(pick):
 trust, trust_label, warnings = race_trust_score(pick)
 

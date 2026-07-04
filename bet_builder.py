@@ -21,14 +21,14 @@ def melbourne_now():
 
 def parse_race_start(race):
     raw = race.get("raceStart")
-if not raw:
-return None
+    if not raw:
+        return None
 
-try:  
-    raw = str(raw).replace("Z", "+00:00")  
-    return datetime.fromisoformat(raw).astimezone(MELBOURNE_TZ)  
-except Exception:  
-    return None
+    try:
+        raw = str(raw).replace("Z", "+00:00")
+        return datetime.fromisoformat(raw).astimezone(MELBOURNE_TZ)
+    except Exception:
+        return None
 
 def race_is_on_target_date(race, target_date):
 start = parse_race_start(race)

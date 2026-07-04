@@ -72,143 +72,154 @@ def get_track_name(race, runners=None):
     return "Unknown Track"
 
 
-def track_matches(track_name, search):
-    return normalise(search) in normalise(track_name)
 
-def build_meeting_track_map(races):
-meeting_first_race = {}
+    def build_meeting_track_map(races):
+    meeting_first_race = {}
 
-for race in races:  
-    meeting_id = race.get("meetingId")  
-    if meeting_id not in meeting_first_race:  
-        meeting_first_race[meeting_id] = race  
+    for race in races:
+        meeting_id = race.get("meetingId")
+        if meeting_id not in meeting_first_race:
+            meeting_first_race[meeting_id] = race
 
-first_race_ids = [r.get("raceId") for r in meeting_first_race.values()]  
-runners_by_race = get_runners_for_races_parallel(first_race_ids, max_workers=8)  
+    first_race_ids = [r.get("raceId") for r in meeting_first_race.values()]
+    runners_by_race = get_runners_for_races_parallel(first_race_ids, max_workers=8)
 
-track_map = {}  
+    track_map = {}
 
-for meeting_id, race in meeting_first_race.items():  
-    runners = runners_by_race.get(race.get("raceId"), [])  
-    track_map[meeting_id] = get_track_name(race, runners)  
+    for meeting_id, race in meeting_first_race.items():
+        runners = runners_by_race.get(race.get("raceId"), [])
+        track_map[meeting_id] = get_track_name(race, runners)
 
-return track_map
+    return track_map
+
 
 def active_runners_only(runners):
-return [
-r for r in runners
-if r.get("scratched") is not True
-and r.get("isLateScratching") is not True
-]
+    return [
+        r
+        for r in runners
+        if r.get("scratched") is not True
+        and r.get("isLateScratching") is not True
+    ]
+
 
 def scan_ranked(target_date=None, track_search=None):
-if target_date is None:
-target_date = melbourne_today()
+    if target_date is None:
+        target_date = melbourne_today()
 
-races = get_all_races_for_date(target_date)  
-meeting_track_map = build_meeting_track_map(races)  
+    races = get_all_races_for_date(target_date)
+    meeting_track_map = build_meeting_track_map(races)
 
-filtered_races = []  
+    filtered_races = []
 
-for race in races:  
-    if race_is_resulted_or_invalid(race):  
-        continue  
+    for race in races:
+        if race_is_resulted_or_invalid(race):
+            continue
 
-    if not race_is_on_target_date(race, target_date):  
-        continue  
+        if not race_is_on_target_date(race, target_date):
+            continue
 
-    if race_has_started(race, target_date):  
-        continue  
+        if race_has_started(race, target_date):
+            continue
 
-    if track_search:  
-        track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")  
-        if not track_matches(track, track_search):  
-            continue  
+        if track_search:
+            track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
+            if not track_matches(track, track_search):
+                continue
 
-    filtered_races.append(race)  
+        filtered_races.append(race)
 
-race_ids = [race.get("raceId") for race in filtered_races]  
-runners_by_race = get_runners_for_races_parallel(race_ids, max_workers=8)  
+    race_ids = [race.get("raceId") for race in filtered_races]
+    runners_by_race = get_runners_for_races_parallel(race_ids, max_workers=8)
 
-ranked = []  
+    ranked = []
 
-for race in filtered_races:  
-    runners = runners_by_race.get(race.get("raceId"), [])  
-    active = active_runners_only(runners)  
+    for race in filtered_races:
+        runners = runners_by_race.get(race.get("raceId"), [])
+        active = active_runners_only(runners)
 
-    if len(active) < 4:  
-        continue  
+        if len(active) < 4:
+            continue
 
-    track = get_track_name(race, active)  
-    if track == "Unknown Track":  
-        track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")  
+        track = get_track_name(race, active)
+        if track == "Unknown Track":
+            track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
 
-    scored = []  
+        scored = []
 
-    for runner in active:  
-        score, pros, warnings = score_runner(runner, active)  
-        scored.append((score, runner, pros, warnings))  
+        for runner in active:
+            score, pros, warnings = score_runner(runner, active)
+            scored.append((score, runner, pros, warnings))
 
-    scored.sort(key=lambda x: x[0], reverse=True)  
+        scored.sort(key=lambda x: x[0], reverse=True)
 
-    best_score, best_runner, pros, warnings = scored[0]  
-    second_score = scored[1][0] if len(scored) > 1 else 0  
-    margin = round(best_score - second_score, 1)  
+        best_score, best_runner, pros, warnings = scored[0]
+        second_score = scored[1][0] if len(scored) > 1 else 0
+        margin = round(best_score - second_score, 1)
 
-    ranked.append({  
-        "score": best_score,  
-        "margin": margin,  
-        "race": race,  
-        "runner": best_runner,  
-        "runners": active,  
-        "pros": pros,  
-        "warnings": warnings,  
-        "track": track,  
-        "field_size": len(active),  
-        "full_rankings": scored,  
-    })  
+        ranked.append({
+            "score": best_score,
+            "margin": margin,
+            "race": race,
+            "runner": best_runner,
+            "runners": active,
+            "pros": pros,
+            "warnings": warnings,
+            "track": track,
+            "field_size": len(active),
+            "full_rankings": scored,
+        })
 
-ranked.sort(key=lambda x: (x["score"], x["margin"]), reverse=True)  
-return ranked
+    ranked.sort(key=lambda x: (x["score"], x["margin"]), reverse=True)
+    return ranked
+
 
 def format_runner_short(runner):
-box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
-dog = runner.get("dogName", "Unknown Dog")
-return f"Box {box} {dog}"
+    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
+    dog = runner.get("dogName", "Unknown Dog")
+    return f"Box {box} {dog}"
+
 
 def format_leg(pick):
-race = pick["race"]
-runner = pick["runner"]
+    race = pick["race"]
+    runner = pick["runner"]
 
-race_no = race.get("raceNumber", "?")  
-authority = race.get("authority", "?")  
-distance = race.get("distance", "?")  
-start = race.get("startTime", "")  
-box = runner.get("boxNumber") or runner.get("rugNumber") or "?"  
-dog = runner.get("dogName", "Unknown Dog")  
+    race_no = race.get("raceNumber", "?")
+    authority = race.get("authority", "?")
+    distance = race.get("distance", "?")
+    start = race.get("startTime", "")
+    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
+    dog = runner.get("dogName", "Unknown Dog")
 
-return f"{pick['track']} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
+    return (
+        f"{pick['track']} R{race_no} ({authority}) — "
+        f"Box {box} {dog} — {distance}m — {start}"
+    )
+
 
 def is_anchor_single(pick):
-return pick["score"] >= 60 and pick["margin"] >= 5
+    return pick["score"] >= 60 and pick["margin"] >= 5
+
 
 def is_safe_multi_leg(pick):
-return pick["score"] >= 55
+    return pick["score"] >= 55
+
 
 def is_multi_anchor(pick):
-return pick["score"] >= 70 and pick["margin"] >= 10
+    return pick["score"] >= 70 and pick["margin"] >= 10
+
 
 def is_race_to_avoid(pick):
-return pick["margin"] < 5 or pick["score"] < 50
+    return pick["margin"] < 5 or pick["score"] < 50
+
 
 def get_same_race_top4_angle(pick):
-scored = pick["full_rankings"]
+    scored = pick["full_rankings"]
 
-if pick["field_size"] != 6:  
-    return None  
+    if pick["field_size"] != 6:
+        return None
 
-if len(scored) < 6:  
-    return None  
+    if len(scored) < 6:
+        return None
 
 top3 = scored[:3]  
 third_score = top3[2][0]  

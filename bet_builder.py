@@ -221,22 +221,22 @@ def get_same_race_top4_angle(pick):
     if len(scored) < 6:
         return None
 
-top3 = scored[:3]  
-third_score = top3[2][0]  
-fifth_score = scored[4][0]  
+    top3 = scored[:3]
+    third_score = top3[2][0]
+    fifth_score = scored[4][0]
 
-gap_to_danger = round(third_score - fifth_score, 1)  
+    gap_to_danger = round(third_score - fifth_score, 1)
 
-if gap_to_danger < 6:  
-    return None  
+    if gap_to_danger < 6:
+        return None
 
-risk = "🟢 Strong Top 4 setup" if gap_to_danger >= 10 else "🟡 Playable Top 4 setup"  
+    risk = "🟢 Strong Top 4 setup" if gap_to_danger >= 10 else "🟡 Playable Top 4 setup"
 
-return {  
-    "top3": top3,  
-    "gap_to_danger": gap_to_danger,  
-    "risk": risk,  
-}
+    return {
+        "top3": top3,
+        "gap_to_danger": gap_to_danger,
+        "risk": risk,
+    }
 
 def format_same_race_top4(pick):
     angle = get_same_race_top4_angle(pick)

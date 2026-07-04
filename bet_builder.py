@@ -490,94 +490,96 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "\nUse /race Track RaceNumber for a full race breakdown."
 
     return msg[:4000]
-    
+
 def build_best_bets_message(target_date=None, track_search=None):
-if target_date is None:
-target_date = melbourne_today()
+    if target_date is None:
+        target_date = melbourne_today()
 
-ranked = scan_ranked(target_date, track_search)  
+    ranked = scan_ranked(target_date, track_search)
 
-if not ranked:  
-    if track_search:  
-        return f"No upcoming races found for '{track_search}' on {target_date}."  
-    return f"No upcoming race/runner data found for {target_date}."  
+    if not ranked:
+        if track_search:
+            return f"No upcoming races found for '{track_search}' on {target_date}."
+        return f"No upcoming race/runner data found for {target_date}."
 
-return build_daily_betting_plan(ranked, target_date, track_search)
+    return build_daily_betting_plan(ranked, target_date, track_search)
+
 
 def build_tracks_message(target_date=None):
-if target_date is None:
-target_date = melbourne_today()
+    if target_date is None:
+        target_date = melbourne_today()
 
-races = get_all_races_for_date(target_date)  
+    races = get_all_races_for_date(target_date)
 
-races = [  
-    r for r in races  
-    if not race_is_resulted_or_invalid(r)  
-    and race_is_on_target_date(r, target_date)  
-    and not race_has_started(r, target_date)  
-]  
+    races = [
+        r for r in races
+        if not race_is_resulted_or_invalid(r)
+        and race_is_on_target_date(r, target_date)
+        and not race_has_started(r, target_date)
+    ]
 
-if not races:  
-    return f"No upcoming tracks found for {target_date}."  
+    if not races:
+        return f"No upcoming tracks found for {target_date}."
 
-meeting_track_map = build_meeting_track_map(races)  
-tracks = {}  
+    meeting_track_map = build_meeting_track_map(races)
+    tracks = {}
 
-for race in races:  
-    track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")  
-    tracks.setdefault(track, 0)  
-    tracks[track] += 1  
+    for race in races:
+        track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
+        tracks.setdefault(track, 0)
+        tracks[track] += 1
 
-msg = f"🐕 Upcoming tracks on {target_date}\n\n"  
+    msg = f"🐕 Upcoming tracks on {target_date}\n\n"
 
-for track, count in sorted(tracks.items()):  
-    msg += f"• {track} — {count} upcoming races\n"  
+    for track, count in sorted(tracks.items()):
+        msg += f"• {track} — {count} upcoming races\n"
 
-msg += "\nUse: /track Geelong or /race Geelong 5"  
+    msg += "\nUse: /track Geelong or /race Geelong 5"
 
-return msg[:4000]
+    return msg[:4000]
+
 
 def build_race_message(track_search, race_number, target_date=None):
-if target_date is None:
-target_date = melbourne_today()
+    if target_date is None:
+        target_date = melbourne_today()
 
-ranked = scan_ranked(target_date, track_search)  
+    ranked = scan_ranked(target_date, track_search)
 
-race_picks = [  
-    p for p in ranked  
-    if str(p["race"].get("raceNumber", "")) == str(race_number)  
-]  
+    race_picks = [
+        p for p in ranked
+        if str(p["race"].get("raceNumber", "")) == str(race_number)
+    ]
 
-if not race_picks:  
-    return f"No upcoming race found for {track_search} R{race_number} on {target_date}."  
+    if not race_picks:
+        return f"No upcoming race found for {track_search} R{race_number} on {target_date}."
 
-pick = race_picks[0]  
-scored = pick["full_rankings"]  
+    pick = race_picks[0]
+    scored = pick["full_rankings"]
 
-msg = f"🐕 FULL RACE RANKING — {pick['track']} R{race_number}\n"  
-msg += f"Date: {target_date}\n"  
-msg += f"Distance: {pick['race'].get('distance', '?')}m\n"  
-msg += f"Active runners: {pick['field_size']}\n\n"  
+    msg = f"🐕 FULL RACE RANKING — {pick['track']} R{race_number}\n"
+    msg += f"Date: {target_date}\n"
+    msg += f"Distance: {pick['race'].get('distance', '?')}m\n"
+    msg += f"Active runners: {pick['field_size']}\n\n"
 
-for i, item in enumerate(scored, start=1):  
-    score, runner, pros, warnings = item  
-    label = confidence_label(score)  
+    for i, item in enumerate(scored, start=1):
+        score, runner, pros, warnings = item
+        label = confidence_label(score)
 
-    msg += f"{i}. {format_runner_short(runner)} — {score}/100 {label}\n"  
+        msg += f"{i}. {format_runner_short(runner)} — {score}/100 {label}\n"
 
-    if pros:  
-        msg += f"✔ {pros[0]}\n"  
+        if pros:
+            msg += f"✔ {pros[0]}\n"
 
-    if warnings:  
-        msg += f"⚠ {warnings[0]}\n"  
+        if warnings:
+            msg += f"⚠ {warnings[0]}\n"
 
-    msg += "\n"  
+        msg += "\n"
 
-msg += f"Suggested bet: {suggested_bet_type(pick['score'], pick['margin'])}\n"  
-msg += f"Race risk: {race_risk_label(pick['score'], pick['margin'], pick['field_size'])}\n\n"  
+    msg += f"Suggested bet: {suggested_bet_type(pick['score'], pick['margin'])}\n"
+    msg += f"Race risk: {race_risk_label(pick['score'], pick['margin'], pick['field_size'])}\n\n"
 
-top4 = format_same_race_top4(pick)  
-if top4:  
-    msg += top4  
+    top4 = format_same_race_top4(pick)
+    if top4:
+        msg += top4
 
-return msg[:4000]
+    return msg[:4000]

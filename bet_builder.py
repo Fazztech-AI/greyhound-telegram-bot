@@ -14,11 +14,13 @@ from utils import normalise, melbourne_today
 
 MELBOURNE_TZ = ZoneInfo("Australia/Melbourne")
 
+
 def melbourne_now():
-return datetime.now(MELBOURNE_TZ)
+    return datetime.now(MELBOURNE_TZ)
+
 
 def parse_race_start(race):
-raw = race.get("raceStart")
+    raw = race.get("raceStart")
 if not raw:
 return None
 

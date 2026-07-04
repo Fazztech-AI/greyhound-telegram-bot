@@ -185,7 +185,7 @@ def build_best_bets_message(target_date=None, track_search=None):
         title += f"\nTrack search: {track_search}"
 
     msg = title + "\n\n"
-    msg += "Topaz model only. Check live odds and scratchings before betting.\n\n"
+    msg += "Minimum odds rule: only consider main bets if live odds are $1.50 or higher.\n\n"
 
     msg += "✅ Best Singles / Place-Style Picks\n\n"
 

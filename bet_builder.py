@@ -1,9 +1,21 @@
 import re
-from race_filters import ...
-from race_trust import ...
-from same_race import ...
-from strategy import ...
-from formatter import ...
+
+from topaz_client import (
+    get_all_races_for_date,
+    get_runners_for_races_parallel,
+)
+
+from scorer import score_runner
+
+from utils import (
+    normalise,
+    melbourne_today,
+)
+
+from race_filters import (
+    should_scan_race,
+    active_runners_only,
+)
 
 def get_track_name(race, runners=None):
     if runners:
@@ -13,6 +25,7 @@ def get_track_name(race, runners=None):
 
     name = str(race.get("name", ""))
     match = re.search(r"@([A-Z]+)", name)
+
     if match:
         return match.group(1)
 
@@ -24,102 +37,170 @@ def track_matches(track_name, search):
 
 
 def build_meeting_track_map(races):
+
     meeting_first_race = {}
 
     for race in races:
         meeting_id = race.get("meetingId")
+
         if meeting_id not in meeting_first_race:
             meeting_first_race[meeting_id] = race
 
-    first_race_ids = [r.get("raceId") for r in meeting_first_race.values()]
-    runners_by_race = get_runners_for_races_parallel(first_race_ids, max_workers=8)
+    first_race_ids = [
+        race.get("raceId")
+        for race in meeting_first_race.values()
+    ]
+
+    runners_by_race = get_runners_for_races_parallel(
+        first_race_ids,
+        max_workers=8,
+    )
 
     track_map = {}
 
     for meeting_id, race in meeting_first_race.items():
-        runners = runners_by_race.get(race.get("raceId"), [])
-        track_map[meeting_id] = get_track_name(race, runners)
+
+        runners = runners_by_race.get(
+            race.get("raceId"),
+            [],
+        )
+
+        track_map[meeting_id] = get_track_name(
+            race,
+            runners,
+        )
 
     return track_map
 
 
-def active_runners_only(runners):
-    return [
-        r for r in runners
-        if r.get("scratched") is not True
-        and r.get("isLateScratching") is not True
-    ]
-
-
 def scan_ranked(target_date=None, track_search=None):
+
     if target_date is None:
         target_date = melbourne_today()
 
     races = get_all_races_for_date(target_date)
+
     meeting_track_map = build_meeting_track_map(races)
 
-    filtered_races = []
+    filtered = []
 
     for race in races:
-        if race_is_resulted_or_invalid(race):
-            continue
 
-        if not race_is_on_target_date(race, target_date):
-            continue
-
-        if race_has_started(race, target_date):
+        if not should_scan_race(race, target_date):
             continue
 
         if track_search:
-            track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
+
+            track = meeting_track_map.get(
+                race.get("meetingId"),
+                "Unknown Track",
+            )
+
             if not track_matches(track, track_search):
                 continue
 
-        filtered_races.append(race)
+        filtered.append(race)
 
-    race_ids = [race.get("raceId") for race in filtered_races]
-    runners_by_race = get_runners_for_races_parallel(race_ids, max_workers=8)
+    race_ids = [
+        race.get("raceId")
+        for race in filtered
+    ]
+
+    runners_by_race = get_runners_for_races_parallel(
+        race_ids,
+        max_workers=8,
+    )
 
     ranked = []
 
-    for race in filtered_races:
-        runners = runners_by_race.get(race.get("raceId"), [])
+    for race in filtered:
+
+        runners = runners_by_race.get(
+            race.get("raceId"),
+            [],
+        )
+
         active = active_runners_only(runners)
 
         if len(active) < 4:
             continue
 
         track = get_track_name(race, active)
+
         if track == "Unknown Track":
-            track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
+            track = meeting_track_map.get(
+                race.get("meetingId"),
+                "Unknown Track",
+            )
 
         scored = []
 
         for runner in active:
-            score, pros, warnings = score_runner(runner, active)
-            scored.append((score, runner, pros, warnings))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+            score, pros, warnings = score_runner(
+                runner,
+                active,
+            )
+
+            scored.append(
+                (
+                    score,
+                    runner,
+                    pros,
+                    warnings,
+                )
+            )
+
+        scored.sort(
+            key=lambda x: x[0],
+            reverse=True,
+        )
 
         best_score, best_runner, pros, warnings = scored[0]
-        second_score = scored[1][0] if len(scored) > 1 else 0
-        margin = round(best_score - second_score, 1)
 
-        ranked.append({
-            "score": best_score,
-            "margin": margin,
-            "race": race,
-            "runner": best_runner,
-            "runners": active,
-            "pros": pros,
-            "warnings": warnings,
-            "track": track,
-            "field_size": len(active),
-            "full_rankings": scored,
-        })
+        second_score = (
+            scored[1][0]
+            if len(scored) > 1
+            else 0
+        )
 
-    ranked.sort(key=lambda x: (x["score"], x["margin"]), reverse=True)
+        ranked.append(
+            {
+                "score": best_score,
+                "margin": round(
+                    best_score - second_score,
+                    1,
+                ),
+                "race": race,
+                "runner": best_runner,
+                "runners": active,
+                "pros": pros,
+                "warnings": warnings,
+                "track": track,
+                "field_size": len(active),
+                "full_rankings": scored,
+            }
+        )
+
+    ranked.sort(
+        key=lambda x: (
+            x["score"],
+            x["margin"],
+        ),
+        reverse=True,
+    )
+
     return ranked
+    from strategy import (
+    betting_plan,
+    daily_summary,
+)
+
+from formatter import (
+    format_daily_plan,
+    format_track_list,
+    format_race_breakdown,
+)
 
 
 def format_runner_short(runner):
@@ -128,254 +209,113 @@ def format_runner_short(runner):
     return f"Box {box} {dog}"
 
 
-def format_leg(pick):
-    race = pick["race"]
-    runner = pick["runner"]
-
-    race_no = race.get("raceNumber", "?")
-    authority = race.get("authority", "?")
-    distance = race.get("distance", "?")
-    start = race.get("startTime", "")
-    box = runner.get("boxNumber") or runner.get("rugNumber") or "?"
-    dog = runner.get("dogName", "Unknown Dog")
-
-    return f"{pick['track']} R{race_no} ({authority}) — Box {box} {dog} — {distance}m — {start}"
-
-
-
-
-    
-def format_short_pick(pick, index=None):
-    prefix = f"{index}. " if index is not None else ""
-    label = confidence_label(pick["score"], pick["margin"])
-    trust, trust_label, warnings = race_trust_score(pick)
-
-    return (
-        f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100\n"
-        f"Race trust: {trust}/100 {trust_label}"
-    )
-
-
-def format_detailed_pick(pick, index=None):
-    runner = pick["runner"]
-    trainer = runner.get("trainerName", "Unknown Trainer")
-
-    pros_text = "\n".join([f"✔ {p}" for p in pick["pros"]])
-    warnings_text = (
-        "\n".join([f"⚠ {w}" for w in pick["warnings"]])
-        if pick["warnings"]
-        else "None"
-    )
-
-    label = confidence_label(pick["score"], pick["margin"])
-    dominance = dominance_label(pick["margin"])
-    trust, trust_label, trust_warnings = race_trust_score(pick)
-recommendation = final_recommendation(pick)
-    risk = race_risk_label(pick["score"], pick["margin"], pick["field_size"])
-    bet_type = suggested_bet_type(pick["score"], pick["margin"])
-
-    prefix = f"{index}. " if index is not None else ""
-
-    msg = (
-        f"{prefix}{label} — {pick['score']}/100\n"
-        f"{format_leg(pick)}\n"
-        f"Trainer: {trainer}\n"
-        f"Active runners: {pick['field_size']}\n"
-        f"Dominance: {dominance}\n"
-        f"Race trust: {trust}/100 {trust_label}\n"
-        f"Final recommendation: {recommendation}\n"
-        f"Race risk: {risk}\n"
-        f"Suggested single: {bet_type}\n"
-        f"Multi use: {'Anchor leg candidate' if is_safe_multi_leg(pick) else 'Not ideal'}\n\n"
-        f"Pros:\n{pros_text}\n"
-        f"Warnings:\n{warnings_text}\n"
-    )
-
-    top4 = format_same_race_top4(pick)
-    if top4:
-        msg += "\n" + top4
-
-    return msg
-
-
-def build_daily_betting_plan(ranked, target_date, track_search=None):
-    title = f"🐕 DAILY BETTING PLAN — {target_date}"
-    if track_search:
-        title += f"\nTrack search: {track_search}"
-
-    msg = title + "\n\n"
-    msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"
-    msg += "Singles: use only when price is worth it.\n"
-    msg += "Multi anchors: can still be useful even if under $1.50.\n"
-    msg += "Finished races and scratched runners are filtered out.\n\n"
-
-    strong_singles = [
-    p for p in ranked
-    if p["score"] >= 65
-    and p["margin"] >= 8
-    and race_trust_score(p)[0] >= 65
-][:6]
-
-multi_anchors = [
-    p for p in ranked
-    if p["score"] >= 60
-    and race_trust_score(p)[0] >= 60
-][:6]
-
-top4_angles = [
-    p for p in ranked
-    if get_same_race_top4_angle(p) is not None
-    and race_trust_score(p)[0] >= 60
-][:5]
-
-avoid_races = [
-    p for p in ranked
-    if p["margin"] < 5
-    or p["score"] < 50
-    or race_trust_score(p)[0] < 50
-][:8]
-
-    msg += "🔥 STRONG SINGLE CANDIDATES\n"
-    msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
-
-    if strong_singles:
-        for i, pick in enumerate(strong_singles, start=1):
-            msg += format_short_pick(pick, i) + "\n"
-    else:
-        msg += "No strong single candidates found.\n"
-
-    msg += "\n━━━━━━━━━━━━━━\n\n"
-
-    msg += "🧱 MULTI ANCHORS\n"
-    msg += "High-confidence runners that may be too short as singles but useful in multis.\n\n"
-
-    if multi_anchors:
-        for i, pick in enumerate(multi_anchors, start=1):
-            msg += format_short_pick(pick, i) + "\n"
-    else:
-        msg += "No strong multi anchors found.\n"
-
-    msg += "\n━━━━━━━━━━━━━━\n\n"
-
-    msg += "🏁 SAME RACE TOP 4 ANGLES\n"
-    msg += "Best for 6-runner races. Use model top 3 to finish Top 4.\n\n"
-
-    if top4_angles:
-        for i, pick in enumerate(top4_angles, start=1):
-            angle = get_same_race_top4_angle(pick)
-            msg += f"{i}. {format_leg(pick)}\n"
-            msg += f"Setup: {angle['risk']}\n"
-            msg += "Use: "
-            msg += ", ".join([format_runner_short(item[1]) for item in angle["top3"]])
-            msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"
-    else:
-        msg += "No strong 6-runner Top 4 setups found.\n"
-
-    msg += "━━━━━━━━━━━━━━\n\n"
-
-    msg += "🚫 AVOID / MESSY RACES\n"
-    msg += "Low edge or weak model confidence. Be careful with these.\n\n"
-
-    if avoid_races:
-        for i, pick in enumerate(avoid_races, start=1):
-            msg += f"{i}. {format_leg(pick)} — {dominance_label(pick['margin'])}\n"
-    else:
-        msg += "No obvious messy races from the top-ranked list.\n"
-
-    msg += "\nUse /race Track RaceNumber for a full race breakdown."
-
-    return msg[:4000]
-
-
 def build_best_bets_message(target_date=None, track_search=None):
+
     if target_date is None:
         target_date = melbourne_today()
 
-    ranked = scan_ranked(target_date, track_search)
+    ranked = scan_ranked(
+        target_date,
+        track_search,
+    )
 
     if not ranked:
-        if track_search:
-            return f"No upcoming races found for '{track_search}' on {target_date}."
-        return f"No upcoming race/runner data found for {target_date}."
 
-    return build_daily_betting_plan(ranked, target_date, track_search)
+        if track_search:
+            return (
+                f"No upcoming races found for "
+                f"'{track_search}' on {target_date}."
+            )
+
+        return (
+            f"No upcoming race data found "
+            f"for {target_date}."
+        )
+
+    summary = daily_summary(ranked)
+
+    return format_daily_plan(
+        summary,
+        betting_plan,
+        target_date,
+    )
 
 
 def build_tracks_message(target_date=None):
+
     if target_date is None:
         target_date = melbourne_today()
 
     races = get_all_races_for_date(target_date)
 
-    races = [
-        r for r in races
-        if not race_is_resulted_or_invalid(r)
-        and race_is_on_target_date(r, target_date)
-        and not race_has_started(r, target_date)
-    ]
-
-    if not races:
-        return f"No upcoming tracks found for {target_date}."
-
     meeting_track_map = build_meeting_track_map(races)
+
     tracks = {}
 
     for race in races:
-        track = meeting_track_map.get(race.get("meetingId"), "Unknown Track")
+
+        if not should_scan_race(race, target_date):
+            continue
+
+        track = meeting_track_map.get(
+            race.get("meetingId"),
+            "Unknown Track",
+        )
+
         tracks.setdefault(track, 0)
         tracks[track] += 1
 
-    msg = f"🐕 Upcoming tracks on {target_date}\n\n"
+    if not tracks:
+        return (
+            f"No upcoming tracks found "
+            f"for {target_date}."
+        )
 
-    for track, count in sorted(tracks.items()):
-        msg += f"• {track} — {count} upcoming races\n"
-
-    msg += "\nUse: /track Geelong or /race Geelong 5"
-
-    return msg[:4000]
+    return format_track_list(
+        tracks,
+        target_date,
+    )
 
 
-def build_race_message(track_search, race_number, target_date=None):
+def build_race_message(
+    track_search,
+    race_number,
+    target_date=None,
+):
+
     if target_date is None:
         target_date = melbourne_today()
 
-    ranked = scan_ranked(target_date, track_search)
+    ranked = scan_ranked(
+        target_date,
+        track_search,
+    )
 
-    race_picks = [
-        p for p in ranked
-        if str(p["race"].get("raceNumber", "")) == str(race_number)
-    ]
+    race_pick = None
 
-    if not race_picks:
-        return f"No upcoming race found for {track_search} R{race_number} on {target_date}."
+    for pick in ranked:
 
-    pick = race_picks[0]
-    scored = pick["full_rankings"]
+        if (
+            str(
+                pick["race"].get(
+                    "raceNumber",
+                    "",
+                )
+            )
+            == str(race_number)
+        ):
 
-    msg = f"🐕 FULL RACE RANKING — {pick['track']} R{race_number}\n"
-    msg += f"Date: {target_date}\n"
-    msg += f"Distance: {pick['race'].get('distance', '?')}m\n"
-    msg += f"Active runners: {pick['field_size']}\n\n"
+            race_pick = pick
+            break
 
-    for i, item in enumerate(scored, start=1):
-        score, runner, pros, warnings = item
-        label = confidence_label(score)
+    if race_pick is None:
 
-        msg += f"{i}. {format_runner_short(runner)} — {score}/100 {label}\n"
+        return (
+            f"No upcoming race found for "
+            f"{track_search} R{race_number} "
+            f"on {target_date}."
+        )
 
-        if pros:
-            msg += f"✔ {pros[0]}\n"
-
-        if warnings:
-            msg += f"⚠ {warnings[0]}\n"
-
-        msg += "\n"
-
-    msg += f"Suggested bet: {suggested_bet_type(pick['score'], pick['margin'])}\n"
-    msg += f"Race risk: {race_risk_label(pick['score'], pick['margin'], pick['field_size'])}\n\n"
-
-    top4 = format_same_race_top4(pick)
-    if top4:
-        msg += top4
-
-    return msg[:4000]
+    return format_race_breakdown(
+        race_pick,
+    )

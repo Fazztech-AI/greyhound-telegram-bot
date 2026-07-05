@@ -5,11 +5,11 @@ from database import save_pick, pick_exists
 
 from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
 from scorer import (
-score_runner,
-confidence_label,
-dominance_label,
-race_risk_label,
-suggested_bet_type,
+    score_runner,
+    confidence_label,
+    dominance_label,
+    race_risk_label,
+    suggested_bet_type,
 )
 from utils import normalise, melbourne_today
 
@@ -445,17 +445,17 @@ def save_pick_to_history(pick, recommendation):
         return
 
     save_pick(
-    race_id=race.get("raceId"),
-    race_date=race_date,
-    track=track,
-    race_number=race_number,
-    dog=dog,
-    box=box,
-    score=pick["score"],
-    margin=pick["margin"],
-    race_trust=trust,
-    field_edge=field_edge,
-    recommendation=recommendation,
+        race_id=race.get("raceId"),
+        race_date=race_date,
+        track=track,
+        race_number=race_number,
+        dog=dog,
+        box=box,
+        score=pick["score"],
+        margin=pick["margin"],
+        race_trust=trust,
+        field_edge=field_edge,
+        recommendation=recommendation,
     )
     
 def build_daily_betting_plan(ranked, target_date, track_search=None):

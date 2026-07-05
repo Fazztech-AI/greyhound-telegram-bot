@@ -188,3 +188,50 @@ def get_statistics():
         "pending": pending,
         "strike_rate": strike_rate,
     }
+
+def get_pending_picks():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT *
+        FROM picks
+        WHERE result='Pending'
+    """).fetchall()
+
+    conn.close()
+
+    return [dict(r) for r in rows]
+
+def update_pick_result(
+    pick_id,
+    result,
+    finish_position,
+    won,
+    placed,
+    starting_price,
+    updated_at,
+):
+    conn = get_connection()
+
+    conn.execute("""
+        UPDATE picks
+        SET
+            result=?,
+            finish_position=?,
+            won=?,
+            placed=?,
+            starting_price=?,
+            updated_at=?
+        WHERE id=?
+    """, (
+        result,
+        finish_position,
+        won,
+        placed,
+        starting_price,
+        updated_at,
+        pick_id,
+    ))
+
+    conn.commit()
+    conn.close()

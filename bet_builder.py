@@ -445,16 +445,17 @@ def save_pick_to_history(pick, recommendation):
         return
 
     save_pick(
-        race_date=race_date,
-        track=track,
-        race_number=race_number,
-        dog=dog,
-        box=box,
-        score=pick["score"],
-        margin=pick["margin"],
-        race_trust=trust,
-        field_edge=field_edge,
-        recommendation=recommendation,
+    race_id=race.get("raceId"),
+    race_date=race_date,
+    track=track,
+    race_number=race_number,
+    dog=dog,
+    box=box,
+    score=pick["score"],
+    margin=pick["margin"],
+    race_trust=trust,
+    field_edge=field_edge,
+    recommendation=recommendation,
     )
     
 def build_daily_betting_plan(ranked, target_date, track_search=None):

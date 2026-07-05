@@ -90,7 +90,26 @@ def save_pick(
     conn.commit()
     conn.close()
 
+def pick_exists(race_date, track, race_number, dog, recommendation):
+    conn = get_connection()
 
+    row = conn.execute(
+        """
+        SELECT id
+        FROM bets
+        WHERE race_date=?
+        AND track=?
+        AND race_number=?
+        AND dog=?
+        AND recommendation=?
+        LIMIT 1
+        """,
+        (race_date, track, race_number, dog, recommendation),
+    ).fetchone()
+
+    conn.close()
+    return row is not None
+    
 def update_result(bet_id, result, starting_price=None):
     conn = get_connection()
 

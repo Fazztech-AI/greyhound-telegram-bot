@@ -16,6 +16,15 @@ from utils import (
     melbourne_today,
 )
 
+from history import (
+    build_history_message,
+    build_statistics_message,
+)
+
+from database import (
+    update_result,
+)
+
 async def send_long(update: Update, text: str):
     for chunk in chunk_message(text):
         await update.message.reply_text(chunk)
@@ -98,3 +107,40 @@ async def natural_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_long(update, build_best_bets_message(target_date, clean_track))
     except Exception as e:
         await update.message.reply_text(f"Message scanner error:\n{e}")
+
+async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await send_long(update, build_history_message())
+    except Exception as e:
+        await update.message.reply_text(f"History error:\n{e}")
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await update.message.reply_text(build_statistics_message())
+    except Exception as e:
+        await update.message.reply_text(f"Stats error:\n{e}")
+
+async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Example:\n"
+            "/record 12 Won 2.30\n"
+            "/record 13 Lost\n"
+            "/record 14 Placed 1.65"
+        )
+        return
+
+    try:
+        bet_id = int(context.args[0])
+        result = context.args[1].capitalize()
+
+        price = None
+        if len(context.args) >= 3:
+            price = float(context.args[2])
+
+        update_result(bet_id, result, price)
+
+        await update.message.reply_text("✅ Result recorded.")
+
+    except Exception as e:
+        await update.message.reply_text(f"Record error:\n{e}")

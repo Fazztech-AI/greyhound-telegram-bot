@@ -10,6 +10,14 @@ def get_connection():
     return conn
 
 
+def ensure_column(conn, table, column, column_type):
+    existing = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    columns = [row["name"] for row in existing]
+
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+
+
 def initialise_database():
     conn = get_connection()
 
@@ -17,6 +25,7 @@ def initialise_database():
     CREATE TABLE IF NOT EXISTS bets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
+        race_id TEXT,
         race_date TEXT,
         track TEXT,
         race_number INTEGER,
@@ -32,12 +41,15 @@ def initialise_database():
         recommendation TEXT,
 
         result TEXT DEFAULT 'Pending',
-
+        finish_position INTEGER,
         starting_price REAL,
 
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    ensure_column(conn, "bets", "race_id", "TEXT")
+    ensure_column(conn, "bets", "finish_position", "INTEGER")
 
     conn.commit()
     conn.close()
@@ -54,12 +66,14 @@ def save_pick(
     race_trust,
     field_edge,
     recommendation,
+    race_id=None,
 ):
     conn = get_connection()
 
     conn.execute(
         """
         INSERT INTO bets (
+            race_id,
             race_date,
             track,
             race_number,
@@ -71,9 +85,10 @@ def save_pick(
             field_edge,
             recommendation
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
+            race_id,
             race_date,
             track,
             race_number,
@@ -89,6 +104,7 @@ def save_pick(
 
     conn.commit()
     conn.close()
+
 
 def pick_exists(race_date, track, race_number, dog, recommendation):
     conn = get_connection()
@@ -109,8 +125,30 @@ def pick_exists(race_date, track, race_number, dog, recommendation):
 
     conn.close()
     return row is not None
-    
+
+
 def update_result(bet_id, result, starting_price=None):
+    conn = get_connection()
+
+    conn.execute(
+        """
+        UPDATE bets
+        SET result=?, starting_price=?
+        WHERE id=?
+        """,
+        (result, starting_price, bet_id),
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def update_pick_result(
+    pick_id,
+    result,
+    finish_position=None,
+    starting_price=None,
+):
     conn = get_connection()
 
     conn.execute(
@@ -118,18 +156,28 @@ def update_result(bet_id, result, starting_price=None):
         UPDATE bets
         SET
             result=?,
+            finish_position=?,
             starting_price=?
         WHERE id=?
         """,
-        (
-            result,
-            starting_price,
-            bet_id,
-        ),
+        (result, finish_position, starting_price, pick_id),
     )
 
     conn.commit()
     conn.close()
+
+
+def get_pending_picks():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT *
+        FROM bets
+        WHERE result='Pending'
+    """).fetchall()
+
+    conn.close()
+    return rows
 
 
 def get_history(limit=100):
@@ -146,39 +194,21 @@ def get_history(limit=100):
     ).fetchall()
 
     conn.close()
-
     return rows
 
 
 def get_statistics():
     conn = get_connection()
 
-    total = conn.execute(
-        "SELECT COUNT(*) FROM bets"
-    ).fetchone()[0]
-
-    wins = conn.execute(
-        "SELECT COUNT(*) FROM bets WHERE result='Won'"
-    ).fetchone()[0]
-
-    places = conn.execute(
-        "SELECT COUNT(*) FROM bets WHERE result='Placed'"
-    ).fetchone()[0]
-
-    losses = conn.execute(
-        "SELECT COUNT(*) FROM bets WHERE result='Lost'"
-    ).fetchone()[0]
-
-    pending = conn.execute(
-        "SELECT COUNT(*) FROM bets WHERE result='Pending'"
-    ).fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
+    wins = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Won'").fetchone()[0]
+    places = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Placed'").fetchone()[0]
+    losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Lost'").fetchone()[0]
+    pending = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Pending'").fetchone()[0]
 
     conn.close()
 
-    strike_rate = 0
-
-    if total:
-        strike_rate = round((wins / total) * 100, 1)
+    strike_rate = round((wins / total) * 100, 1) if total else 0
 
     return {
         "total": total,
@@ -188,34 +218,3 @@ def get_statistics():
         "pending": pending,
         "strike_rate": strike_rate,
     }
-
-def get_pending_picks():
-    conn = get_connection()
-
-    rows = conn.execute("""
-        SELECT *
-        FROM bets
-        WHERE result='Pending'
-    """).fetchall()
-
-    conn.close()
-    return rows
-
-def update_pick_result(
-    pick_id,
-    result,
-    finish_position=None,
-    starting_price=None,
-):
-    conn = get_connection()
-
-    conn.execute("""
-        UPDATE bets
-        SET
-            result=?,
-            starting_price=?
-        WHERE id=?
-    """, (result, starting_price, pick_id))
-
-    conn.commit()
-    conn.close()

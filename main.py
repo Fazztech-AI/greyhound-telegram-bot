@@ -34,6 +34,8 @@ def main():
     app.add_handler(CommandHandler("stats", stats_command))  
     app.add_handler(CommandHandler("record", record_command))
 
+    initialise_database()
+    
     app.run_polling()
 
 if __name__ == "__main__":

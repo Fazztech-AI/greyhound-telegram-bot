@@ -507,6 +507,85 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
             msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"
     else:
         msg += "No strong 6-runner Top 4 setups found.\n"
+def build_daily_betting_plan(ranked, target_date, track_search=None):
+    title = f"🐕 DAILY BETTING PLAN — {target_date}"
+    if track_search:
+        title += f"\nTrack search: {track_search}"
+
+    msg = title + "\n\n"
+    msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"
+    msg += "Singles: use only when price is worth it.\n"
+    msg += "Multi anchors: can still be useful even if under $1.50.\n"
+    msg += "Finished races and scratched runners are filtered out.\n\n"
+
+    strong_singles = [
+        p for p in ranked
+        if p["score"] >= 70
+        and p["margin"] >= 8
+        and race_trust_score(p)[0] >= 65
+        and field_dominance_index(p)[0] >= 10
+    ][:6]
+
+    multi_anchors = [
+        p for p in ranked
+        if p["score"] >= 60
+        and p["margin"] >= 5
+        and race_trust_score(p)[0] >= 55
+        and field_dominance_index(p)[0] >= 7
+    ][:6]
+
+    top4_angles = [
+        p for p in ranked
+        if get_same_race_top4_angle(p) is not None
+        and race_trust_score(p)[0] >= 60
+    ][:5]
+
+    avoid_races = [
+        p for p in ranked
+        if p["margin"] < 5
+        or p["score"] < 50
+        or race_trust_score(p)[0] < 50
+        or field_dominance_index(p)[0] < 5
+    ][:8]
+
+    msg += "🔥 STRONG SINGLE CANDIDATES\n"
+    msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
+
+    if strong_singles:
+        for i, pick in enumerate(strong_singles, start=1):
+            save_pick_to_history(pick, "Strong Single")
+            msg += format_short_pick(pick, i) + "\n"
+    else:
+        msg += "No strong single candidates found.\n"
+
+    msg += "\n━━━━━━━━━━━━━━\n\n"
+
+    msg += "🧱 MULTI ANCHORS\n"
+    msg += "High-confidence runners that may be too short as singles but useful in multis.\n\n"
+
+    if multi_anchors:
+        for i, pick in enumerate(multi_anchors, start=1):
+            save_pick_to_history(pick, "Multi Anchor")
+            msg += format_short_pick(pick, i) + "\n"
+    else:
+        msg += "No strong multi anchors found.\n"
+
+    msg += "\n━━━━━━━━━━━━━━\n\n"
+
+    msg += "🏁 SAME RACE TOP 4 ANGLES\n"
+    msg += "Best for 6-runner races. Use model top 3 to finish Top 4.\n\n"
+
+    if top4_angles:
+        for i, pick in enumerate(top4_angles, start=1):
+            save_pick_to_history(pick, "Top 4 Angle")
+            angle = get_same_race_top4_angle(pick)
+            msg += f"{i}. {format_leg(pick)}\n"
+            msg += f"Setup: {angle['risk']}\n"
+            msg += "Use: "
+            msg += ", ".join(format_runner_short(item[1]) for item in angle["top3"])
+            msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"
+    else:
+        msg += "No strong 6-runner Top 4 setups found.\n"
 
     msg += "━━━━━━━━━━━━━━\n\n"
 

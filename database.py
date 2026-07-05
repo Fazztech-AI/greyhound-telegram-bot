@@ -194,44 +194,28 @@ def get_pending_picks():
 
     rows = conn.execute("""
         SELECT *
-        FROM picks
+        FROM bets
         WHERE result='Pending'
     """).fetchall()
 
     conn.close()
-
-    return [dict(r) for r in rows]
+    return rows
 
 def update_pick_result(
     pick_id,
     result,
-    finish_position,
-    won,
-    placed,
-    starting_price,
-    updated_at,
+    finish_position=None,
+    starting_price=None,
 ):
     conn = get_connection()
 
     conn.execute("""
-        UPDATE picks
+        UPDATE bets
         SET
             result=?,
-            finish_position=?,
-            won=?,
-            placed=?,
-            starting_price=?,
-            updated_at=?
+            starting_price=?
         WHERE id=?
-    """, (
-        result,
-        finish_position,
-        won,
-        placed,
-        starting_price,
-        updated_at,
-        pick_id,
-    ))
+    """, (result, starting_price, pick_id))
 
     conn.commit()
     conn.close()

@@ -1,5 +1,5 @@
 from datetime import datetime
-from api import get_runners_for_race
+from topaz_client import get_runners_for_race
 from database import (
     get_pending_picks,
     update_pick_result,

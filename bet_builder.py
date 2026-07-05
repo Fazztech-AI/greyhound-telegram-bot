@@ -330,6 +330,31 @@ def race_trust_score(pick):
         label = "🔴 Low trust"
 
     return score, label, warnings
+
+
+def field_dominance_index(pick):
+    scored = pick["full_rankings"]
+
+    if len(scored) < 4:
+        return 0, "🔴 Weak field read"
+
+    top_score = scored[0][0]
+    rest_scores = [item[0] for item in scored[1:]]
+
+    avg_rest = sum(rest_scores) / len(rest_scores)
+    dominance = round(top_score - avg_rest, 1)
+
+    if dominance >= 20:
+        label = "🟢 Dominates field"
+    elif dominance >= 12:
+        label = "🟡 Clear field edge"
+    elif dominance >= 7:
+        label = "🟠 Some field edge"
+    else:
+        label = "🔴 Bunched field"
+
+    return dominance, label
+    
     
 def final_recommendation(pick):
     trust, trust_label, warnings = race_trust_score(pick)
@@ -352,10 +377,12 @@ def format_short_pick(pick, index=None):
     prefix = f"{index}. " if index is not None else ""
     label = confidence_label(pick["score"], pick["margin"])
     trust, trust_label, warnings = race_trust_score(pick)
+    field_dom, field_label = field_dominance_index(pick)
 
     return (
-        f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100\n"
-        f"Race trust: {trust}/100 {trust_label}"
+    f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100\n"
+    f"Race trust: {trust}/100 {trust_label}\n"
+    f"Field edge: {field_dom} pts {field_label}"
     )
 
 def format_detailed_pick(pick, index=None):
@@ -412,17 +439,20 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "Finished races and scratched runners are filtered out.\n\n"
 
     strong_singles = [
-        p for p in ranked
-        if p["score"] >= 65
-        and p["margin"] >= 8
-        and race_trust_score(p)[0] >= 65
-    ][:6]
+    p for p in ranked
+    if p["score"] >= 70
+    and p["margin"] >= 8
+    and race_trust_score(p)[0] >= 65
+    and field_dominance_index(p)[0] >= 10
+][:6]
 
     multi_anchors = [
-        p for p in ranked
-        if p["score"] >= 60
-        and race_trust_score(p)[0] >= 60
-    ][:6]
+    p for p in ranked
+    if p["score"] >= 60
+    and p["margin"] >= 5
+    and race_trust_score(p)[0] >= 55
+    and field_dominance_index(p)[0] >= 7
+][:6]
 
     top4_angles = [
         p for p in ranked
@@ -431,11 +461,12 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     ][:5]
 
     avoid_races = [
-        p for p in ranked
-        if p["margin"] < 5
-        or p["score"] < 50
-        or race_trust_score(p)[0] < 50
-    ][:8]
+    p for p in ranked
+    if p["margin"] < 5
+    or p["score"] < 50
+    or race_trust_score(p)[0] < 50
+    or field_dominance_index(p)[0] < 5
+][:8]
 
     msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"

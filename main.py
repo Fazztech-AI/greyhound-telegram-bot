@@ -1,7 +1,18 @@
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from zoneinfo import ZoneInfo
 from config import BOT_TOKEN, TOPAZ_API_KEY
-from commands import start, scan, tracks_command, track_command, race_command, natural_message
+from commands import (
+    start,
+    scan,
+    tracks_command,
+    track_command,
+    race_command,
+    natural_message,
+    history_command,
+    stats_command,
+    record_command,
+)
+from database import initialise_database
 
 def main():
     if not BOT_TOKEN:
@@ -19,6 +30,9 @@ def main():
     app.add_handler(CommandHandler("track", track_command))
     app.add_handler(CommandHandler("race", race_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message))
+    app.add_handler(CommandHandler("history", history_command))
+    app.add_handler(CommandHandler("stats", stats_command))  
+    app.add_handler(CommandHandler("record", record_command))
 
     app.run_polling()
 

@@ -1,4 +1,3 @@
-
 from database import get_history, get_statistics
 
 
@@ -12,22 +11,15 @@ def build_history_message(limit=25):
 
     for row in rows:
         msg += (
-            f"#{row['id']} "
-            f"{row['race_date']} "
-            f"{row['track']} R{row['race_number']}\n"
+            f"#{row['id']} {row['race_date']} {row['track']} R{row['race_number']}\n"
             f"🐕 Box {row['box']} {row['dog']}\n"
             f"Result: {row['result']}\n"
             f"Score: {row['score']}/100\n"
             f"Margin: {row['margin']}\n"
             f"Race Trust: {row['race_trust']}\n"
             f"Field Edge: {row['field_edge']}\n"
-            f"Recommendation: {row['recommendation']}\n"
+            f"Recommendation: {row['recommendation']}\n\n"
         )
-
-        if row["starting_price"] is not None:
-            msg += f"SP: ${row['starting_price']}\n"
-
-        msg += "\n"
 
     return msg[:4000]
 
@@ -35,14 +27,12 @@ def build_history_message(limit=25):
 def build_statistics_message():
     stats = get_statistics()
 
-    msg = (
+    return (
         "📊 BOT PERFORMANCE\n\n"
         f"Selections: {stats['total']}\n"
         f"Wins: {stats['wins']}\n"
         f"Places: {stats['places']}\n"
         f"Losses: {stats['losses']}\n"
         f"Pending: {stats['pending']}\n\n"
-        f"Win Strike Rate: {stats['strike_rate']}%\n"
+        f"Win Strike Rate: {stats['strike_rate']}%"
     )
-
-    return msg

@@ -469,7 +469,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     or field_dominance_index(p)[0] < 5
 ][:8]
 
-        msg += "🔥 STRONG SINGLE CANDIDATES\n"
+    msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
 
     if strong_singles:

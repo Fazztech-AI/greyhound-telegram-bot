@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from database import save_pick, pick_exists
 
 from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
 from scorer import (
@@ -471,8 +472,9 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
 
-    if strong_singles:
+        if strong_singles:
         for i, pick in enumerate(strong_singles, start=1):
+            save_pick_to_history(pick, "Strong Single")
             msg += format_short_pick(pick, i) + "\n"
     else:
         msg += "No strong single candidates found.\n"
@@ -484,6 +486,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     if multi_anchors:
         for i, pick in enumerate(multi_anchors, start=1):
+            save_pick_to_history(pick, "Multi Anchor")
             msg += format_short_pick(pick, i) + "\n"
     else:
         msg += "No strong multi anchors found.\n"
@@ -495,6 +498,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     if top4_angles:
         for i, pick in enumerate(top4_angles, start=1):
+            save_pick_to_history(pick, "Top 4 Angle")
             angle = get_same_race_top4_angle(pick)
             msg += f"{i}. {format_leg(pick)}\n"
             msg += f"Setup: {angle['risk']}\n"

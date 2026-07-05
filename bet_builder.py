@@ -428,6 +428,35 @@ def format_detailed_pick(pick, index=None):
     return msg
 
 
+def save_pick_to_history(pick, recommendation):
+    trust, _, _ = race_trust_score(pick)
+    field_edge, _ = field_dominance_index(pick)
+
+    race = pick["race"]
+    runner = pick["runner"]
+
+    race_date = str(race.get("raceDate") or melbourne_today())
+    track = pick["track"]
+    race_number = race.get("raceNumber")
+    dog = runner.get("dogName")
+    box = runner.get("boxNumber") or runner.get("rugNumber")
+
+    if pick_exists(race_date, track, race_number, dog, recommendation):
+        return
+
+    save_pick(
+        race_date=race_date,
+        track=track,
+        race_number=race_number,
+        dog=dog,
+        box=box,
+        score=pick["score"],
+        margin=pick["margin"],
+        race_trust=trust,
+        field_edge=field_edge,
+        recommendation=recommendation,
+    )
+    
 def build_daily_betting_plan(ranked, target_date, track_search=None):
     title = f"🐕 DAILY BETTING PLAN — {target_date}"
     if track_search:

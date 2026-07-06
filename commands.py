@@ -149,11 +149,18 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        updated, skipped = update_results()
-        await update.message.reply_text(
+        updated, skipped, reasons = update_results()
+
+        msg = (
             f"✅ Results update complete.\n"
             f"Updated: {updated}\n"
             f"Skipped: {skipped}"
         )
+
+        if reasons:
+            msg += "\n\nReasons:\n" + "\n".join(reasons)
+
+        await update.message.reply_text(msg[:4000])
+
     except Exception as e:
         await update.message.reply_text(f"Update error:\n{e}")

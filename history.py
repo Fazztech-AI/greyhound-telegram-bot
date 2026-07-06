@@ -107,25 +107,6 @@ def build_score_band_stats_message():
 
     return msg[:4000]
 
-def debug_database():
-    conn = get_connection()
-
-    rows = conn.execute("""
-        SELECT
-            race_date,
-            track,
-            race_number,
-            dog,
-            box,
-            score,
-            result
-        FROM bets
-        LIMIT 10
-    """).fetchall()
-
-    conn.close()
-    return rows
-
 def build_box_stats_message():
     rows = get_box_stats()
 

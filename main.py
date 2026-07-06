@@ -11,6 +11,7 @@ from commands import (
     history_command,
     stats_command,
     record_command,
+    update_command,
 )
 from database import initialise_database
 

@@ -311,3 +311,22 @@ def get_box_stats():
 
     conn.close()
     return rows
+
+def debug_database():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT
+            race_date,
+            track,
+            race_number,
+            dog,
+            box,
+            score,
+            result
+        FROM bets
+        LIMIT 10
+    """).fetchall()
+
+    conn.close()
+    return rows

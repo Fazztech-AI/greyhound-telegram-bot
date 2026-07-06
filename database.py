@@ -117,7 +117,6 @@ def pick_exists(race_date, track, race_number, dog, recommendation):
         AND track=?
         AND race_number=?
         AND dog=?
-        AND recommendation=?
         LIMIT 1
         """,
         (race_date, track, race_number, dog, recommendation),

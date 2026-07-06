@@ -21,6 +21,7 @@ from history import (
     build_statistics_message,
     build_recommendation_stats_message,
     build_score_band_stats_message,
+    build_track_stats_message,
 )
 
 from database import (
@@ -131,6 +132,10 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(build_score_band_stats_message())
                 return
 
+            if arg in ["tracks", "track"]:
+                await update.message.reply_text(build_track_stats_message())
+                return
+    
         await update.message.reply_text(build_statistics_message())
 
     except Exception as e:

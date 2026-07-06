@@ -106,7 +106,7 @@ def save_pick(
     conn.close()
 
 
-def pick_exists(race_date, track, race_number, dog, recommendation):
+def pick_exists(race_date, track, race_number, dog):
     conn = get_connection()
 
     row = conn.execute(
@@ -119,7 +119,12 @@ def pick_exists(race_date, track, race_number, dog, recommendation):
         AND dog=?
         LIMIT 1
         """,
-        (race_date, track, race_number, dog, recommendation),
+        (
+            race_date,
+            track,
+            race_number,
+            dog,
+        ),
     ).fetchone()
 
     conn.close()

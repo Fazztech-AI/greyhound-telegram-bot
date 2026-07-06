@@ -441,7 +441,7 @@ def save_pick_to_history(pick, recommendation):
     dog = runner.get("dogName")
     box = runner.get("boxNumber") or runner.get("rugNumber")
 
-    if pick_exists(race_date, track, race_number, dog, recommendation):
+    if pick_exists(race_date, track, race_number, dog):
         return
 
     save_pick(

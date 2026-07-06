@@ -25,6 +25,8 @@ from database import (
     update_result,
 )
 
+from results_updater import update_results
+
 async def send_long(update: Update, text: str):
     for chunk in chunk_message(text):
         await update.message.reply_text(chunk)
@@ -144,3 +146,14 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f"Record error:\n{e}")
+
+async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        updated, skipped = update_results()
+        await update.message.reply_text(
+            f"✅ Results update complete.\n"
+            f"Updated: {updated}\n"
+            f"Skipped: {skipped}"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Update error:\n{e}")

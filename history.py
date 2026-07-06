@@ -109,7 +109,7 @@ def build_track_stats_message():
     rows = get_track_stats()
 
     if not rows:
-        return "📊 No track stats yet."
+        return "📊 No track stats yet. Debug: get_track_stats returned 0 rows."
 
     msg = "📊 PERFORMANCE BY TRACK\n\n"
 
@@ -140,7 +140,7 @@ def build_box_stats_message():
     rows = get_box_stats()
 
     if not rows:
-        return "📊 No box stats yet."
+        return "📊 No box stats yet. Debug: get_box_stats returned 0 rows."
 
     msg = "📊 PERFORMANCE BY BOX\n\n"
 

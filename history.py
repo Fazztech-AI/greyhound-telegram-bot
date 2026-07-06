@@ -1,4 +1,10 @@
-from database import get_history, get_statistics, get_recommendation_stats, get_score_band_stats, get_track_stats
+from database import (
+    get_history,
+    get_statistics,
+    get_recommendation_stats,
+    get_score_band_stats,
+    get_track_stats,
+)
 
 def build_history_message(limit=25):
     rows = get_history(limit)

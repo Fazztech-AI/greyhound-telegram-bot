@@ -51,6 +51,7 @@ def initialise_database():
     ensure_column(conn, "bets", "race_id", "TEXT")
     ensure_column(conn, "bets", "finish_position", "INTEGER")
 
+    conn.execute("UPDATE bets SET result='Pending' WHERE result IS NULL")
     conn.commit()
     conn.close()
 

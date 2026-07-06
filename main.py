@@ -63,11 +63,16 @@ def main():
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message))
 
+    if app.job_queue:
     app.job_queue.run_daily(
         nightly_update,
         time=time(hour=0, minute=30, tzinfo=MELBOURNE),
         name="nightly_results_update",
     )
+else:
+    print("⚠️ JobQueue not available. Nightly updater disabled.")
+
+app.run_polling()
 
     app.run_polling()
 

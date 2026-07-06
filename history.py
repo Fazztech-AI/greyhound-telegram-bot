@@ -156,3 +156,17 @@ def build_box_stats_message():
         )
 
     return msg[:4000]
+
+def build_track_stats_message():
+    rows = debug_database()
+
+    msg = "DEBUG DATABASE ROWS\n\n"
+
+    for r in rows:
+        msg += (
+            f"{r['track']} | "
+            f"Box {r['box']} | "
+            f"{r['dog']}\n"
+        )
+
+    return msg or "Database empty"

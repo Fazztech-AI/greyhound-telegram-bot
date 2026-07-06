@@ -19,7 +19,8 @@ from utils import (
 from history import (
     build_history_message,
     build_statistics_message,
-    build_recommendation_stats_message
+    build_recommendation_stats_message,
+    build_score_band_stats_message,
 )
 
 from database import (
@@ -119,14 +120,22 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        if context.args and context.args[0].lower() in ["recommendations", "recs", "types"]:
-            await update.message.reply_text(build_recommendation_stats_message())
-            return
+        if context.args:
+            arg = context.args[0].lower()
+
+            if arg in ["recommendations", "recs", "types"]:
+                await update.message.reply_text(build_recommendation_stats_message())
+                return
+
+            if arg in ["scores", "score", "bands"]:
+                await update.message.reply_text(build_score_band_stats_message())
+                return
 
         await update.message.reply_text(build_statistics_message())
+
     except Exception as e:
         await update.message.reply_text(f"Stats error:\n{e}")
-
+        
 async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 2:
         await update.message.reply_text(

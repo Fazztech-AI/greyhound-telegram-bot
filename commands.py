@@ -149,13 +149,7 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        result = update_results()
-
-        if len(result) == 3:
-            updated, skipped, reasons = result
-        else:
-            updated, skipped = result
-            reasons = ["Old update_results() is still loaded. Redeploy/restart needed."]
+        updated, skipped, reasons = update_results()
 
         msg = (
             f"✅ Results update complete.\n"
@@ -166,10 +160,6 @@ async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if reasons:
             msg += "\n\nReasons:\n" + "\n".join(str(r) for r in reasons)
 
-        await update.message.reply_text(msg[:4000])
-
-    except Exception as e:
-        await update.message.reply_text(f"Update error:\n{e}")
         await update.message.reply_text(msg[:4000])
 
     except Exception as e:

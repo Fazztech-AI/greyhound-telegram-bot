@@ -1,4 +1,4 @@
-from database import get_history, get_statistics
+from database import get_history, get_statistics, get_recommendation_stats
 
 
 def build_history_message(limit=25):

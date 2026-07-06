@@ -66,30 +66,43 @@ def update_results():
     pending = get_pending_picks()
     updated = 0
     skipped = 0
+    reasons = []
 
     for pick in pending:
         race_id = pick["race_id"]
 
         if not race_id:
             skipped += 1
+            reasons.append(f"#{pick['id']} skipped: no race_id")
             continue
 
         try:
             runners = get_runners_for_race(race_id)
-        except Exception:
+        except Exception as e:
             skipped += 1
+            reasons.append(f"#{pick['id']} skipped: runner load error {e}")
+            continue
+
+        if not runners:
+            skipped += 1
+            reasons.append(f"#{pick['id']} skipped: no runners returned")
             continue
 
         target_dog = str(pick["dog"] or "").strip().lower()
+        matched = False
 
         for runner in runners:
             if get_runner_name(runner) != target_dog:
                 continue
 
+            matched = True
             finish_position = get_finish_position(runner)
 
             if finish_position is None:
                 skipped += 1
+                reasons.append(
+                    f"#{pick['id']} skipped: dog matched but no finish position. Keys: {list(runner.keys())}"
+                )
                 break
 
             result = result_from_position(finish_position)
@@ -105,4 +118,8 @@ def update_results():
             updated += 1
             break
 
-    return updated, skipped
+        if not matched:
+            skipped += 1
+            reasons.append(f"#{pick['id']} skipped: dog not matched")
+
+    return updated, skipped, reasons[:5]

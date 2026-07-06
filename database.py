@@ -291,3 +291,23 @@ def get_track_stats():
 
     conn.close()
     return rows
+
+def get_box_stats():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT
+            box,
+            COUNT(*) AS total,
+            SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
+            SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result='Pending' THEN 1 ELSE 0 END) AS pending
+        FROM bets
+        WHERE box IS NOT NULL
+        GROUP BY box
+        ORDER BY box ASC
+    """).fetchall()
+
+    conn.close()
+    return rows

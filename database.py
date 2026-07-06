@@ -83,9 +83,10 @@ def save_pick(
             margin,
             race_trust,
             field_edge,
-            recommendation
+            recommendation,
+            result
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             race_id,
@@ -99,6 +100,7 @@ def save_pick(
             race_trust,
             field_edge,
             recommendation,
+            "Pending",
         ),
     )
 

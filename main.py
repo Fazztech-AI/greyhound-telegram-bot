@@ -1,7 +1,12 @@
 from datetime import time
 from zoneinfo import ZoneInfo
 
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
 from config import BOT_TOKEN, TOPAZ_API_KEY
 from commands import (
@@ -27,13 +32,11 @@ async def nightly_update(context):
         updated, skipped, reasons = update_results()
 
         print(
-            f"🌙 Nightly results update complete. "
-            f"Updated={updated}, Skipped={skipped}"
+            f"🌙 Nightly update complete | Updated: {updated} | Skipped: {skipped}"
         )
 
-        if reasons:
-            for reason in reasons:
-                print(reason)
+        for reason in reasons:
+            print(reason)
 
     except Exception as e:
         print(f"Nightly update failed: {e}")
@@ -42,6 +45,7 @@ async def nightly_update(context):
 def main():
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN missing")
+
     if not TOPAZ_API_KEY:
         raise RuntimeError("TOPAZ_API_KEY missing")
 
@@ -51,6 +55,7 @@ def main():
 
     app = Application.builder().token(BOT_TOKEN).build()
 
+    # Commands
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("scan", scan))
     app.add_handler(CommandHandler("tracks", tracks_command))
@@ -61,18 +66,24 @@ def main():
     app.add_handler(CommandHandler("record", record_command))
     app.add_handler(CommandHandler("update", update_command))
 
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_message))
-
-    if app.job_queue:
-    app.job_queue.run_daily(
-        nightly_update,
-        time=time(hour=0, minute=30, tzinfo=MELBOURNE),
-        name="nightly_results_update",
+    # Natural language
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            natural_message,
+        )
     )
-else:
-    print("⚠️ JobQueue not available. Nightly updater disabled.")
 
-app.run_polling()
+    # Nightly automatic results update (00:30 Melbourne time)
+    if app.job_queue:
+        app.job_queue.run_daily(
+            nightly_update,
+            time=time(hour=0, minute=30, tzinfo=MELBOURNE),
+            name="nightly_results_update",
+        )
+        print("✅ Nightly updater scheduled.")
+    else:
+        print("⚠️ JobQueue unavailable. Nightly updater disabled.")
 
     app.run_polling()
 

@@ -241,3 +241,31 @@ def get_recommendation_stats():
 
     conn.close()
     return rows
+
+def get_score_band_stats():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT
+            CASE
+                WHEN score >= 80 THEN '80+'
+                WHEN score >= 75 THEN '75-79'
+                WHEN score >= 70 THEN '70-74'
+                WHEN score >= 65 THEN '65-69'
+                WHEN score >= 60 THEN '60-64'
+                ELSE 'Under 60'
+            END AS score_band,
+
+            COUNT(*) AS total,
+            SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
+            SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result='Pending' THEN 1 ELSE 0 END) AS pending
+
+        FROM bets
+        GROUP BY score_band
+        ORDER BY MIN(score) DESC
+    """).fetchall()
+
+    conn.close()
+    return rows

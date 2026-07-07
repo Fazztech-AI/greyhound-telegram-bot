@@ -32,9 +32,11 @@ from database import (
 
 from results_updater import update_results
 
+
 async def send_long(update: Update, text: str):
     for chunk in chunk_message(text):
         await update.message.reply_text(chunk)
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -50,12 +52,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "You can also just type a track name."
     )
 
+
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔍 Scanning and rating all races...")
     try:
         await send_long(update, build_best_bets_message())
     except Exception as e:
         await update.message.reply_text(f"Scanner error:\n{e}")
+
 
 async def tracks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args).strip()
@@ -67,20 +71,28 @@ async def tracks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Tracks error:\n{e}")
 
+
 async def track_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args).strip()
+
     if not text:
-        await update.message.reply_text("Example: /track Geelong or /track The Meadows tomorrow")
+        await update.message.reply_text(
+            "Example: /track Geelong or /track The Meadows tomorrow"
+        )
         return
 
     target_date = parse_date_from_text(text)
     clean_track = clean_track_text(text, target_date)
 
-    await update.message.reply_text(f"🔍 Scanning {clean_track} for {target_date}...")
+    await update.message.reply_text(
+        f"🔍 Scanning {clean_track} for {target_date}..."
+    )
+
     try:
         await send_long(update, build_best_bets_message(target_date, clean_track))
     except Exception as e:
         await update.message.reply_text(f"Track scanner error:\n{e}")
+
 
 async def race_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args).strip()
@@ -98,22 +110,34 @@ async def race_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Example: /race Geelong 5")
         return
 
-    await update.message.reply_text(f"🔍 Loading {clean_track} R{race_number} for {target_date}...")
+    await update.message.reply_text(
+        f"🔍 Loading {clean_track} R{race_number} for {target_date}..."
+    )
+
     try:
-        await send_long(update, build_race_message(clean_track, race_number, target_date))
+        await send_long(
+            update,
+            build_race_message(clean_track, race_number, target_date),
+        )
     except Exception as e:
         await update.message.reply_text(f"Race scanner error:\n{e}")
 
+
 async def natural_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
+
     target_date = parse_date_from_text(text)
     clean_track = clean_track_text(text, target_date)
 
-    await update.message.reply_text(f"🔍 Checking {clean_track} for {target_date}...")
+    await update.message.reply_text(
+        f"🔍 Checking {clean_track} for {target_date}..."
+    )
+
     try:
         await send_long(update, build_best_bets_message(target_date, clean_track))
     except Exception as e:
         await update.message.reply_text(f"Message scanner error:\n{e}")
+
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -121,36 +145,48 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"History error:\n{e}")
 
+
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if context.args:
             arg = context.args[0].lower()
 
             if arg in ["recommendations", "recs", "types"]:
-                await update.message.reply_text(build_recommendation_stats_message())
+                await update.message.reply_text(
+                    build_recommendation_stats_message()
+                )
                 return
 
             if arg in ["scores", "score", "bands"]:
-                await update.message.reply_text(build_score_band_stats_message())
+                await update.message.reply_text(
+                    build_score_band_stats_message()
+                )
                 return
 
             if arg in ["tracks", "track"]:
-                await update.message.reply_text(build_track_stats_message())
+                await update.message.reply_text(
+                    build_track_stats_message()
+                )
                 return
 
             if arg in ["boxes", "box"]:
-                await update.message.reply_text(build_box_stats_message())
+                await update.message.reply_text(
+                    build_box_stats_message()
+                )
                 return
 
             if arg in ["learning", "learn", "thresholds"]:
-               await update.message.reply_text(build_threshold_report_message())
+                await update.message.reply_text(
+                    build_threshold_report_message()
+                )
                 return
-    
+
         await update.message.reply_text(build_statistics_message())
 
     except Exception as e:
         await update.message.reply_text(f"Stats error:\n{e}")
-        
+
+
 async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 2:
         await update.message.reply_text(
@@ -176,6 +212,7 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Record error:\n{e}")
 
+
 async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         updated, skipped, reasons = update_results()
@@ -187,7 +224,8 @@ async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if reasons:
-            msg += "\n\nReasons:\n" + "\n".join(str(r) for r in reasons)
+            msg += "\n\nReasons:\n"
+            msg += "\n".join(str(r) for r in reasons)
 
         await update.message.reply_text(msg[:4000])
 

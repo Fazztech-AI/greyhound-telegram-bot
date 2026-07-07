@@ -135,15 +135,36 @@ def pick_exists(race_date, track, race_number, dog):
 
 
 def update_result(bet_id, result, starting_price=None):
+    valid_results = {
+        "Won",
+        "Placed",
+        "Lost",
+        "Pending",
+        "Scratched",
+    }
+
+    result = result.capitalize()
+
+    if result not in valid_results:
+        raise ValueError(
+            f"Result must be one of: {', '.join(sorted(valid_results))}"
+        )
+
     conn = get_connection()
 
     conn.execute(
         """
         UPDATE bets
-        SET result=?, starting_price=?
+        SET
+            result=?,
+            starting_price=?
         WHERE id=?
         """,
-        (result, starting_price, bet_id),
+        (
+            result,
+            starting_price,
+            bet_id,
+        ),
     )
 
     conn.commit()

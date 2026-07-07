@@ -420,14 +420,20 @@ def final_recommendation(pick):
 
 def format_short_pick(pick, index=None):
     prefix = f"{index}. " if index is not None else ""
+
     label = confidence_label(pick["score"], pick["margin"])
+
     trust, trust_label, warnings = race_trust_score(pick)
     field_dom, field_label = field_dominance_index(pick)
 
+    place_score = place_confidence_score(pick)
+    place_label = place_confidence_label(place_score)
+
     return (
-    f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100\n"
-    f"Race trust: {trust}/100 {trust_label}\n"
-    f"Field edge: {field_dom} pts {field_label}"
+        f"{prefix}{format_leg(pick)} — {label} — {pick['score']}/100\n"
+        f"Race trust: {trust}/100 {trust_label}\n"
+        f"Field edge: {field_dom} pts {field_label}\n"
+        f"Place confidence: {place_score}/100 {place_label}"
     )
 
 def format_detailed_pick(pick, index=None):
@@ -533,6 +539,18 @@ def place_confidence_score(pick):
         score += 3
 
     return min(100, round(score, 1))
+
+def place_confidence_label(score):
+    if score >= 90:
+        return "⭐⭐⭐⭐⭐ Elite"
+    elif score >= 80:
+        return "⭐⭐⭐⭐ Excellent"
+    elif score >= 70:
+        return "⭐⭐⭐ Strong"
+    elif score >= 60:
+        return "⭐⭐ Good"
+    else:
+        return "⭐ Speculative"
     
 def build_daily_betting_plan(ranked, target_date, track_search=None):
     title = f"🐕 DAILY BETTING PLAN — {target_date}"

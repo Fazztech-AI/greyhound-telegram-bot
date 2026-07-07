@@ -39,9 +39,11 @@ def build_statistics_message():
     return (
         "📊 BOT PERFORMANCE\n\n"
         f"Selections: {stats['total']}\n"
+        f"Completed: {stats['completed']}\n"
         f"Wins: {stats['wins']}\n"
         f"Places: {stats['places']}\n"
         f"Losses: {stats['losses']}\n"
+        f"Scratched: {stats['scratched']}\n"
         f"Pending: {stats['pending']}\n\n"
         f"Win Strike Rate: {stats['strike_rate']}%"
     )

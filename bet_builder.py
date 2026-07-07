@@ -102,6 +102,9 @@ def active_runners_only(runners):
     active = []
 
     for r in runners:
+        if "SPEEDY ZIPPER" in str(r.get("dogName", "")).upper():
+    print("DEBUG SPEEDY ZIPPER RUNNER DATA:", r)
+    
         scratch_fields = [
             r.get("scratched"),
             r.get("isScratched"),

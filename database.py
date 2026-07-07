@@ -228,22 +228,45 @@ def get_history(limit=100):
 def get_statistics():
     conn = get_connection()
 
-    total = conn.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
-    wins = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Won'").fetchone()[0]
-    places = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Placed'").fetchone()[0]
-    losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Lost'").fetchone()[0]
-    pending = conn.execute("SELECT COUNT(*) FROM bets WHERE result='Pending'").fetchone()[0]
+    total = conn.execute(
+        "SELECT COUNT(*) FROM bets"
+    ).fetchone()[0]
+
+    wins = conn.execute(
+        "SELECT COUNT(*) FROM bets WHERE result='Won'"
+    ).fetchone()[0]
+
+    places = conn.execute(
+        "SELECT COUNT(*) FROM bets WHERE result='Placed'"
+    ).fetchone()[0]
+
+    losses = conn.execute(
+        "SELECT COUNT(*) FROM bets WHERE result='Lost'"
+    ).fetchone()[0]
+
+    scratched = conn.execute(
+        "SELECT COUNT(*) FROM bets WHERE result='Scratched'"
+    ).fetchone()[0]
+
+    pending = conn.execute(
+        "SELECT COUNT(*) FROM bets WHERE result='Pending'"
+    ).fetchone()[0]
 
     conn.close()
 
-    strike_rate = round((wins / total) * 100, 1) if total else 0
+    # Only completed races count towards strike rate
+    completed = wins + places + losses
+
+    strike_rate = round((wins / completed) * 100, 1) if completed else 0
 
     return {
         "total": total,
         "wins": wins,
         "places": places,
         "losses": losses,
+        "scratched": scratched,
         "pending": pending,
+        "completed": completed,
         "strike_rate": strike_rate,
     }
 

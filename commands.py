@@ -23,6 +23,7 @@ from history import (
     build_score_band_stats_message,
     build_track_stats_message,
     build_box_stats_message,
+    build_threshold_report_message,
 )
 
 from database import (
@@ -139,6 +140,10 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if arg in ["boxes", "box"]:
                 await update.message.reply_text(build_box_stats_message())
+                return
+
+            if arg in ["learning", "learn", "thresholds"]:
+               await update.message.reply_text(build_threshold_report_message())
                 return
     
         await update.message.reply_text(build_statistics_message())

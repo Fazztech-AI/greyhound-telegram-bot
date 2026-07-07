@@ -270,6 +270,7 @@ def get_statistics():
         "strike_rate": strike_rate,
     }
 
+
 def get_recommendation_stats():
     conn = get_connection()
 
@@ -280,6 +281,7 @@ def get_recommendation_stats():
             SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
             SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
             SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result='Scratched' THEN 1 ELSE 0 END) AS scratched,
             SUM(CASE WHEN result='Pending' THEN 1 ELSE 0 END) AS pending
         FROM bets
         GROUP BY recommendation
@@ -288,6 +290,7 @@ def get_recommendation_stats():
 
     conn.close()
     return rows
+
 
 def get_score_band_stats():
     conn = get_connection()
@@ -302,13 +305,12 @@ def get_score_band_stats():
                 WHEN score >= 60 THEN '60-64'
                 ELSE 'Under 60'
             END AS score_band,
-
             COUNT(*) AS total,
             SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
             SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
             SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result='Scratched' THEN 1 ELSE 0 END) AS scratched,
             SUM(CASE WHEN result='Pending' THEN 1 ELSE 0 END) AS pending
-
         FROM bets
         GROUP BY score_band
         ORDER BY MIN(score) DESC
@@ -316,6 +318,7 @@ def get_score_band_stats():
 
     conn.close()
     return rows
+
 
 def get_track_stats():
     conn = get_connection()
@@ -327,6 +330,7 @@ def get_track_stats():
             SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
             SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
             SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result='Scratched' THEN 1 ELSE 0 END) AS scratched,
             SUM(CASE WHEN result='Pending' THEN 1 ELSE 0 END) AS pending
         FROM bets
         GROUP BY track
@@ -335,6 +339,7 @@ def get_track_stats():
 
     conn.close()
     return rows
+
 
 def get_box_stats():
     conn = get_connection()
@@ -346,6 +351,7 @@ def get_box_stats():
             SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
             SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
             SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses,
+            SUM(CASE WHEN result='Scratched' THEN 1 ELSE 0 END) AS scratched,
             SUM(CASE WHEN result='Pending' THEN 1 ELSE 0 END) AS pending
         FROM bets
         WHERE box IS NOT NULL

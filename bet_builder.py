@@ -97,12 +97,40 @@ def build_meeting_track_map(races):
 
 
 def active_runners_only(runners):
-    return [
-        r
-        for r in runners
-        if r.get("scratched") is not True
-        and r.get("isLateScratching") is not True
-    ]
+    scratched_values = {"true", "yes", "y", "1", "scratched", "late scratching"}
+
+    active = []
+
+    for r in runners:
+        scratch_fields = [
+            r.get("scratched"),
+            r.get("isScratched"),
+            r.get("isLateScratching"),
+            r.get("lateScratching"),
+            r.get("scratchingType"),
+            r.get("scratchingReason"),
+            r.get("status"),
+            r.get("runnerStatus"),
+        ]
+
+        is_scratched = False
+
+        for value in scratch_fields:
+            if value is True:
+                is_scratched = True
+                break
+
+            if value is None:
+                continue
+
+            if str(value).strip().lower() in scratched_values:
+                is_scratched = True
+                break
+
+        if not is_scratched:
+            active.append(r)
+
+    return active
 
 
 def scan_ranked(target_date=None, track_search=None):

@@ -330,3 +330,25 @@ def debug_database():
 
     conn.close()
     return rows
+
+def get_threshold_report():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT
+            COUNT(*) AS completed,
+
+            AVG(score) AS avg_score,
+            AVG(race_trust) AS avg_trust,
+            AVG(field_edge) AS avg_edge,
+
+            SUM(CASE WHEN result='Won' THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN result='Placed' THEN 1 ELSE 0 END) AS places,
+            SUM(CASE WHEN result='Lost' THEN 1 ELSE 0 END) AS losses
+
+        FROM bets
+        WHERE result IN ('Won', 'Placed', 'Lost')
+    """).fetchone()
+
+    conn.close()
+    return rows

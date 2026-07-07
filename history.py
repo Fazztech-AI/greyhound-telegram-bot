@@ -6,6 +6,7 @@ from database import (
     get_track_stats,
     get_box_stats,
     debug_database,
+    get_threshold_report,
 )
 
 
@@ -168,3 +169,34 @@ def build_track_stats_message():
         )
 
     return msg[:4000]
+
+def build_threshold_report_message():
+    row = get_threshold_report()
+
+    completed = row["completed"] or 0
+
+    if completed < 50:
+        return (
+            "🧠 LEARNING REPORT\n\n"
+            f"Completed selections: {completed}/50\n\n"
+            "Not enough data yet to safely adjust thresholds.\n"
+            "Keep scanning and updating results."
+        )
+
+    wins = row["wins"] or 0
+    places = row["places"] or 0
+    losses = row["losses"] or 0
+
+    win_rate = round((wins / completed) * 100, 1)
+    place_rate = round(((wins + places) / completed) * 100, 1)
+
+    return (
+        "🧠 LEARNING REPORT\n\n"
+        f"Completed selections: {completed}\n"
+        f"Win rate: {win_rate}%\n"
+        f"Win/place rate: {place_rate}%\n\n"
+        f"Average score: {round(row['avg_score'] or 0, 1)}\n"
+        f"Average race trust: {round(row['avg_trust'] or 0, 1)}\n"
+        f"Average field edge: {round(row['avg_edge'] or 0, 1)}\n\n"
+        "Enough data collected to start tightening thresholds."
+    )

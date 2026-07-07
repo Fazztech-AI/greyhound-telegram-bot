@@ -139,15 +139,32 @@ def build_box_stats_message():
     return msg[:4000]
 
 def build_track_stats_message():
-    rows = debug_database()
+    rows = get_track_stats()
 
-    msg = "DEBUG DATABASE ROWS\n\n"
+    if not rows:
+        return "📊 No track stats yet."
 
-    for r in rows:
+    msg = "📊 PERFORMANCE BY TRACK\n\n"
+
+    for row in rows:
+        total = row["total"]
+        wins = row["wins"] or 0
+        places = row["places"] or 0
+        losses = row["losses"] or 0
+        pending = row["pending"] or 0
+
+        completed = wins + places + losses
+        win_rate = round((wins / completed) * 100, 1) if completed else 0
+        place_rate = round(((wins + places) / completed) * 100, 1) if completed else 0
+
         msg += (
-            f"{r['track']} | "
-            f"Box {r['box']} | "
-            f"{r['dog']}\n"
+            f"{row['track']}\n"
+            f"Total: {total}\n"
+            f"Completed: {completed}\n"
+            f"Wins: {wins} ({win_rate}%)\n"
+            f"Win/Place: {wins + places} ({place_rate}%)\n"
+            f"Losses: {losses}\n"
+            f"Pending: {pending}\n\n"
         )
 
-    return msg or "Database empty"
+    return msg[:4000]

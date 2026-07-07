@@ -503,6 +503,37 @@ def save_pick_to_history(pick, recommendation):
     )
     
 
+def place_confidence_score(pick):
+    score = 50
+
+    race_trust, _, _ = race_trust_score(pick)
+    field_edge, _ = field_dominance_index(pick)
+
+    if pick["score"] >= 70:
+        score += 15
+    elif pick["score"] >= 60:
+        score += 8
+
+    if race_trust >= 70:
+        score += 15
+    elif race_trust >= 60:
+        score += 8
+
+    if field_edge >= 15:
+        score += 15
+    elif field_edge >= 10:
+        score += 8
+
+    if pick["field_size"] <= 6:
+        score += 8
+
+    if pick["margin"] >= 5:
+        score += 7
+    elif pick["margin"] >= 3:
+        score += 3
+
+    return min(100, round(score, 1))
+    
 def build_daily_betting_plan(ranked, target_date, track_search=None):
     title = f"🐕 DAILY BETTING PLAN — {target_date}"
     if track_search:
@@ -531,11 +562,8 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     ][:6]
 
     place_anchors = [
-        p for p in ranked
-        if p["score"] >= 58
-        and p["margin"] >= 3
-        and race_trust_score(p)[0] >= 60
-        and field_dominance_index(p)[0] >= 12
+    p for p in ranked
+    if place_confidence_score(p) >= 75
     ][:6]
 
     top4_angles = [

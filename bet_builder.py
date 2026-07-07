@@ -97,14 +97,26 @@ def build_meeting_track_map(races):
 
 
 def active_runners_only(runners):
-    scratched_values = {"true", "yes", "y", "1", "scratched", "late scratching"}
+    scratched_values = {
+        "true",
+        "yes",
+        "y",
+        "1",
+        "scratched",
+        "late scratching",
+        "late scratched",
+        "withdrawn",
+        "withdrawal",
+    }
 
     active = []
 
     for r in runners:
-        if "SPEEDY ZIPPER" in str(r.get("dogName", "")).upper():
-    print("DEBUG SPEEDY ZIPPER RUNNER DATA:", r)
-    
+        dog_name = str(r.get("dogName", "")).upper()
+
+        if "SPEEDY ZIPPER" in dog_name:
+            print("DEBUG SPEEDY ZIPPER RUNNER DATA:", r)
+
         scratch_fields = [
             r.get("scratched"),
             r.get("isScratched"),
@@ -114,6 +126,8 @@ def active_runners_only(runners):
             r.get("scratchingReason"),
             r.get("status"),
             r.get("runnerStatus"),
+            r.get("raceRunStatus"),
+            r.get("runStatus"),
         ]
 
         is_scratched = False
@@ -134,7 +148,6 @@ def active_runners_only(runners):
             active.append(r)
 
     return active
-
 
 def scan_ranked(target_date=None, track_search=None):
     if target_date is None:

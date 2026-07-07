@@ -48,6 +48,7 @@ def build_statistics_message():
         f"Win Strike Rate: {stats['strike_rate']}%"
     )
 
+
 def build_recommendation_stats_message():
     rows = get_recommendation_stats()
 
@@ -61,6 +62,7 @@ def build_recommendation_stats_message():
         wins = row["wins"] or 0
         places = row["places"] or 0
         losses = row["losses"] or 0
+        scratched = row["scratched"] or 0
         pending = row["pending"] or 0
 
         completed = wins + places + losses
@@ -74,10 +76,12 @@ def build_recommendation_stats_message():
             f"Wins: {wins} ({win_rate}%)\n"
             f"Win/Place: {wins + places} ({place_rate}%)\n"
             f"Losses: {losses}\n"
+            f"Scratched: {scratched}\n"
             f"Pending: {pending}\n\n"
         )
 
     return msg[:4000]
+
 
 def build_score_band_stats_message():
     rows = get_score_band_stats()
@@ -92,6 +96,7 @@ def build_score_band_stats_message():
         wins = row["wins"] or 0
         places = row["places"] or 0
         losses = row["losses"] or 0
+        scratched = row["scratched"] or 0
         pending = row["pending"] or 0
 
         completed = wins + places + losses
@@ -105,16 +110,18 @@ def build_score_band_stats_message():
             f"Wins: {wins} ({win_rate}%)\n"
             f"Win/Place: {wins + places} ({place_rate}%)\n"
             f"Losses: {losses}\n"
+            f"Scratched: {scratched}\n"
             f"Pending: {pending}\n\n"
         )
 
     return msg[:4000]
 
+
 def build_box_stats_message():
     rows = get_box_stats()
 
     if not rows:
-        return "📊 No box stats yet. Debug: get_box_stats returned 0 rows."
+        return "📊 No box stats yet."
 
     msg = "📊 PERFORMANCE BY BOX\n\n"
 
@@ -123,6 +130,7 @@ def build_box_stats_message():
         wins = row["wins"] or 0
         places = row["places"] or 0
         losses = row["losses"] or 0
+        scratched = row["scratched"] or 0
         pending = row["pending"] or 0
 
         completed = wins + places + losses
@@ -136,10 +144,12 @@ def build_box_stats_message():
             f"Wins: {wins} ({win_rate}%)\n"
             f"Win/Place: {wins + places} ({place_rate}%)\n"
             f"Losses: {losses}\n"
+            f"Scratched: {scratched}\n"
             f"Pending: {pending}\n\n"
         )
 
     return msg[:4000]
+
 
 def build_track_stats_message():
     rows = get_track_stats()
@@ -154,6 +164,7 @@ def build_track_stats_message():
         wins = row["wins"] or 0
         places = row["places"] or 0
         losses = row["losses"] or 0
+        scratched = row["scratched"] or 0
         pending = row["pending"] or 0
 
         completed = wins + places + losses
@@ -167,10 +178,12 @@ def build_track_stats_message():
             f"Wins: {wins} ({win_rate}%)\n"
             f"Win/Place: {wins + places} ({place_rate}%)\n"
             f"Losses: {losses}\n"
+            f"Scratched: {scratched}\n"
             f"Pending: {pending}\n\n"
         )
 
     return msg[:4000]
+
 
 def build_threshold_report_message():
     row = get_threshold_report()

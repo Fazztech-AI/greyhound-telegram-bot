@@ -52,3 +52,68 @@ CREATE TABLE IF NOT EXISTS learning (
 
     conn.commit()
     conn.close()
+
+def save_learning_record(
+    race_id,
+    race_date,
+    track,
+    race_number,
+    predicted_dog,
+    predicted_box,
+    winner_dog,
+    winner_box,
+    predicted_score,
+    winner_score,
+    predicted_margin,
+    winner_margin,
+    predicted_trust,
+    winner_trust,
+    predicted_edge,
+    winner_edge,
+    field_size,
+):
+    conn = get_connection()
+
+    conn.execute("""
+        INSERT INTO learning (
+            race_id,
+            race_date,
+            track,
+            race_number,
+            predicted_dog,
+            predicted_box,
+            winner_dog,
+            winner_box,
+            predicted_score,
+            winner_score,
+            predicted_margin,
+            winner_margin,
+            predicted_trust,
+            winner_trust,
+            predicted_edge,
+            winner_edge,
+            field_size
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        race_id,
+        race_date,
+        track,
+        race_number,
+        predicted_dog,
+        predicted_box,
+        winner_dog,
+        winner_box,
+        predicted_score,
+        winner_score,
+        predicted_margin,
+        winner_margin,
+        predicted_trust,
+        winner_trust,
+        predicted_edge,
+        winner_edge,
+        field_size,
+    ))
+
+    conn.commit()
+    conn.close()

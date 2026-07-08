@@ -24,6 +24,7 @@ from commands import (
 )
 from database import initialise_database
 from learning import learn_from_results
+from learning_history import initialise_learning
 from results_updater import update_results
 
 MELBOURNE = ZoneInfo("Australia/Melbourne")
@@ -59,6 +60,7 @@ def main():
     print("🚀 GREYHOUND AI V1.0 STARTED")
 
     initialise_database()
+    initialise_learning()
 
     app = Application.builder().token(BOT_TOKEN).build()
 

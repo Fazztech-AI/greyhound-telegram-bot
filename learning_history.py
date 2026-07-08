@@ -59,51 +59,58 @@ def save_learning_runner(
     recommendation,
     field_size,
 ):
+    if learning_runner_exists(race_id, dog):
+        return
+
     conn = get_connection()
 
     conn.execute("""
         INSERT INTO learning (
-
             race_id,
             race_date,
-
             track,
             race_number,
-
             dog,
             box,
-
             score,
             margin,
             race_trust,
             field_edge,
-
             recommendation,
-
             field_size
-
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-
         race_id,
         race_date,
-
         track,
         race_number,
-
         dog,
         box,
-
         score,
         margin,
         race_trust,
         field_edge,
-
         recommendation,
-
         field_size,
     ))
 
     conn.commit()
     conn.close()
+
+def learning_runner_exists(race_id, dog):
+    conn = get_connection()
+
+    row = conn.execute("""
+        SELECT id
+        FROM learning
+        WHERE race_id=?
+        AND dog=?
+        LIMIT 1
+    """, (
+        race_id,
+        dog,
+    )).fetchone()
+
+    conn.close()
+    return row is not None

@@ -11,6 +11,7 @@ from scorer import (
     race_risk_label,
     suggested_bet_type,
 )
+from learning_settings import DEFAULT_THRESHOLDS
 from utils import normalise, melbourne_today
 
 MELBOURNE_TZ = ZoneInfo("Australia/Melbourne")
@@ -553,6 +554,8 @@ def place_confidence_label(score):
         return "⭐ Speculative"
     
 def build_daily_betting_plan(ranked, target_date, track_search=None):
+    thresholds = DEFAULT_THRESHOLDS
+
     title = f"🐕 DAILY BETTING PLAN — {target_date}"
     if track_search:
         title += f"\nTrack search: {track_search}"
@@ -565,24 +568,24 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     strong_singles = [
         p for p in ranked
-        if p["score"] >= 70
-        and p["margin"] >= 8
-        and race_trust_score(p)[0] >= 65
-        and field_dominance_index(p)[0] >= 10
+        if p["score"] >= thresholds["strong_single_score"]
+        and p["margin"] >= thresholds["strong_single_margin"]
+        and race_trust_score(p)[0] >= thresholds["strong_single_trust"]
+        and field_dominance_index(p)[0] >= thresholds["strong_single_edge"]
     ][:6]
 
     multi_anchors = [
         p for p in ranked
-        if p["score"] >= 60
-        and p["margin"] >= 5
-        and race_trust_score(p)[0] >= 55
-        and field_dominance_index(p)[0] >= 7
+        if p["score"] >= thresholds["multi_anchor_score"]
+        and p["margin"] >= thresholds["multi_anchor_margin"]
+        and race_trust_score(p)[0] >= thresholds["multi_anchor_trust"]
+        and field_dominance_index(p)[0] >= thresholds["multi_anchor_edge"]
     ][:6]
 
     place_anchors = [
         p for p in ranked
         if p["field_size"] >= 8
-        and place_confidence_score(p) >= 75
+        and place_confidence_score(p) >= thresholds["place_confidence"]
     ][:6]
 
     top4_angles = [
@@ -664,6 +667,9 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "\nUse /race Track RaceNumber for a full race breakdown."
 
     return msg[:4000]
+
+    
+
     
     def runner_key(pick):
         race = pick["race"]

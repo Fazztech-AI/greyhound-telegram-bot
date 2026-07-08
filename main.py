@@ -20,6 +20,7 @@ from commands import (
     stats_command,
     record_command,
     update_command,
+    debug_race_command,
 )
 from database import initialise_database
 from results_updater import update_results

@@ -79,3 +79,11 @@ def get_runners_for_races_parallel(race_ids, max_workers=8):
                 results[rid] = []
 
     return results
+
+def debug_race_runs(race_id):
+    runners = get_runners_for_race(race_id)
+
+    for runner in runners:
+        print("RUNNER DEBUG:", runner)
+
+    return runners

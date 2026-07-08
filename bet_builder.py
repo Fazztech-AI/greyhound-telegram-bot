@@ -560,7 +560,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg = title + "\n\n"
     msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"
     msg += "Singles: use only when price is worth it.\n"
-    msg += "Place chances are dogs that look safer for Top 2 / Top 3 rather than pure win.\n"
+    msg += "Place chances only show for 8-runner races where 3rd dividend is available.\n"
     msg += "Finished races and scratched runners are filtered out.\n\n"
 
     strong_singles = [
@@ -579,7 +579,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         and field_dominance_index(p)[0] >= 7
     ][:6]
 
-     place_anchors = [
+    place_anchors = [
         p for p in ranked
         if p["field_size"] >= 8
         and place_confidence_score(p) >= 75
@@ -624,14 +624,14 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
     msg += "🛡 HIGH PLACE CHANCES\n"
-    msg +=     msg += "Only shown for 8-runner races where 3rd dividend is available.\n\n"
+    msg += "Only shown for 8-runner races where 3rd dividend is available.\n\n"
 
     if place_anchors:
         for i, pick in enumerate(place_anchors, start=1):
             save_pick_to_history(pick, "High Place")
             msg += format_short_pick(pick, i) + "\n"
     else:
-        msg += "No strong place candidates found.\n"
+        msg += "No strong 8-runner place candidates found.\n"
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
@@ -664,6 +664,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "\nUse /race Track RaceNumber for a full race breakdown."
 
     return msg[:4000]
+    
     def runner_key(pick):
         race = pick["race"]
         runner = pick["runner"]

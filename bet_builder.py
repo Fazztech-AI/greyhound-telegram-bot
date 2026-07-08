@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from database import save_pick, pick_exists
+from learning_history import save_learning_runner
 
 from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
 from scorer import (
@@ -509,7 +510,53 @@ def save_pick_to_history(pick, recommendation):
         recommendation=recommendation,
     )
     
+def save_learning_from_scan(ranked):
+    """
+    Save the top 4 analysed runners from every scanned race.
 
+    This records what the AI believed BEFORE the race.
+    """
+
+    for pick in ranked:
+
+        race = pick["race"]
+        scored = pick["full_rankings"]
+
+        field_size = len(pick["runners"])
+
+        for score, runner, pros, warnings in scored[:4]:
+
+            margin = round(score - scored[1][0], 1) if len(scored) > 1 else 0
+
+            learning_pick = {
+                "score": score,
+                "margin": margin,
+                "runner": runner,
+                "runners": pick["runners"],
+                "field_size": field_size,
+                "full_rankings": scored,
+            }
+
+            race_trust, _, _ = race_trust_score(learning_pick)
+            field_edge, _ = field_dominance_index(learning_pick)
+
+            recommendation = final_recommendation(learning_pick)
+
+            save_learning_runner(
+                race_id=race.get("raceId"),
+                race_date=str(race.get("raceDate") or melbourne_today()),
+                track=pick["track"],
+                race_number=race.get("raceNumber"),
+                dog=runner.get("dogName"),
+                box=runner.get("boxNumber") or runner.get("rugNumber"),
+                score=score,
+                margin=margin,
+                race_trust=race_trust,
+                field_edge=field_edge,
+                recommendation=recommendation,
+                field_size=field_size,
+            )
+            
 def place_confidence_score(pick):
     score = 50
 

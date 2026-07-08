@@ -11,7 +11,7 @@ from scorer import (
     race_risk_label,
     suggested_bet_type,
 )
-from learning_settings import DEFAULT_THRESHOLDS
+from learning import load_settings
 from utils import normalise, melbourne_today
 
 MELBOURNE_TZ = ZoneInfo("Australia/Melbourne")
@@ -554,7 +554,7 @@ def place_confidence_label(score):
         return "⭐ Speculative"
     
 def build_daily_betting_plan(ranked, target_date, track_search=None):
-    thresholds = DEFAULT_THRESHOLDS
+    thresholds = load_settings()
 
     title = f"🐕 DAILY BETTING PLAN — {target_date}"
     if track_search:

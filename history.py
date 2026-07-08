@@ -20,14 +20,15 @@ def build_history_message(limit=25):
 
     for row in rows:
         msg += (
-            f"#{row['id']} {row['race_date']} {row['track']} R{row['race_number']}\n"
-            f"🐕 Box {row['box']} {row['dog']}\n"
-            f"Result: {row['result']}\n"
-            f"Score: {row['score']}/100\n"
-            f"Margin: {row['margin']}\n"
-            f"Race Trust: {row['race_trust']}\n"
-            f"Field Edge: {row['field_edge']}\n"
-            f"Recommendation: {row['recommendation']}\n\n"
+    f"#{row['id']} {row['race_date']} {row['track']} R{row['race_number']}\n"
+    f"Race ID: {row['race_id']}\n"
+    f"🐕 Box {row['box']} {row['dog']}\n"
+    f"Result: {row['result']}\n"
+    f"Score: {row['score']}/100\n"
+    f"Margin: {row['margin']}\n"
+    f"Race Trust: {row['race_trust']}\n"
+    f"Field Edge: {row['field_edge']}\n"
+    f"Recommendation: {row['recommendation']}\n\n"
         )
 
     return msg[:4000]

@@ -2,6 +2,7 @@ import re
 
 from telegram import Update
 from telegram.ext import ContextTypes
+from topaz_client import debug_race_runs
 
 from bet_builder import (
     build_best_bets_message,
@@ -231,3 +232,18 @@ async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f"Update error:\n{e}")
+
+async def debug_race_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Example: /debugrace 123456")
+        return
+
+    race_id = context.args[0]
+
+    try:
+        runners = debug_race_runs(race_id)
+        await update.message.reply_text(
+            f"Debug printed {len(runners)} runners to Railway logs."
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Debug race error:\n{e}")

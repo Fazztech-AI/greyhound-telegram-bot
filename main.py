@@ -64,7 +64,7 @@ def main():
     app.add_handler(CommandHandler("history", history_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("record", record_command))
-    app.add_handler(CommandHandler("update", update_command))
+    app.add_handler(CommandHandler("debugrace", debug_race_command))pp.add_handler(CommandHandler("update", update_command))
 
     # Natural language
     app.add_handler(

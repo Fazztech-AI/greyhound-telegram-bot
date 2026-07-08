@@ -579,9 +579,10 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         and field_dominance_index(p)[0] >= 7
     ][:6]
 
-    place_anchors = [
-    p for p in ranked
-    if place_confidence_score(p) >= 75
+        place_anchors = [
+        p for p in ranked
+        if p["field_size"] >= 8
+        and place_confidence_score(p) >= 75
     ][:6]
 
     top4_angles = [
@@ -623,7 +624,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
     msg += "🛡 HIGH PLACE CHANCES\n"
-    msg += "Strong runners that may be better suited to Place / Top 2 / Top 3 bets.\n\n"
+    msg +=     msg += "Only shown for 8-runner races where 3rd dividend is available.\n\n"
 
     if place_anchors:
         for i, pick in enumerate(place_anchors, start=1):

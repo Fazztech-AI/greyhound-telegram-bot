@@ -50,7 +50,8 @@ def initialise_database():
 
     ensure_column(conn, "bets", "race_id", "TEXT")
     ensure_column(conn, "bets", "finish_position", "INTEGER")
-
+    ensure_column(conn, "bets", "result_note", "TEXT")
+    
     conn.execute("UPDATE bets SET result='Pending' WHERE result IS NULL")
     conn.commit()
     conn.close()
@@ -134,22 +135,7 @@ def pick_exists(race_date, track, race_number, dog):
     return row is not None
 
 
-def update_result(bet_id, result, starting_price=None):
-    valid_results = {
-        "Won",
-        "Placed",
-        "Lost",
-        "Pending",
-        "Scratched",
-    }
-
-    result = result.capitalize()
-
-    if result not in valid_results:
-        raise ValueError(
-            f"Result must be one of: {', '.join(sorted(valid_results))}"
-        )
-
+def update_result(bet_id, result, starting_price=None, result_note=None):
     conn = get_connection()
 
     conn.execute(
@@ -157,12 +143,14 @@ def update_result(bet_id, result, starting_price=None):
         UPDATE bets
         SET
             result=?,
-            starting_price=?
+            starting_price=?,
+            result_note=?
         WHERE id=?
         """,
         (
             result,
             starting_price,
+            result_note,
             bet_id,
         ),
     )

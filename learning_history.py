@@ -19,30 +19,25 @@ CREATE TABLE IF NOT EXISTS learning (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     race_id TEXT,
-
     race_date TEXT,
+
     track TEXT,
     race_number INTEGER,
 
-    predicted_dog TEXT,
-    predicted_box INTEGER,
+    dog TEXT,
+    box INTEGER,
 
-    winner_dog TEXT,
-    winner_box INTEGER,
+    score REAL,
+    margin REAL,
+    race_trust REAL,
+    field_edge REAL,
 
-    predicted_score REAL,
-    winner_score REAL,
-
-    predicted_margin REAL,
-    winner_margin REAL,
-
-    predicted_trust REAL,
-    winner_trust REAL,
-
-    predicted_edge REAL,
-    winner_edge REAL,
+    recommendation TEXT,
 
     field_size INTEGER,
+
+    finish_position INTEGER,
+    result TEXT,
 
     learnt INTEGER DEFAULT 0,
 
@@ -50,68 +45,63 @@ CREATE TABLE IF NOT EXISTS learning (
 )
 """)
 
-    conn.commit()
-    conn.close()
-
-def save_learning_record(
+def save_learning_runner(
     race_id,
     race_date,
     track,
     race_number,
-    predicted_dog,
-    predicted_box,
-    winner_dog,
-    winner_box,
-    predicted_score,
-    winner_score,
-    predicted_margin,
-    winner_margin,
-    predicted_trust,
-    winner_trust,
-    predicted_edge,
-    winner_edge,
+    dog,
+    box,
+    score,
+    margin,
+    race_trust,
+    field_edge,
+    recommendation,
     field_size,
 ):
     conn = get_connection()
 
     conn.execute("""
         INSERT INTO learning (
+
             race_id,
             race_date,
+
             track,
             race_number,
-            predicted_dog,
-            predicted_box,
-            winner_dog,
-            winner_box,
-            predicted_score,
-            winner_score,
-            predicted_margin,
-            winner_margin,
-            predicted_trust,
-            winner_trust,
-            predicted_edge,
-            winner_edge,
+
+            dog,
+            box,
+
+            score,
+            margin,
+            race_trust,
+            field_edge,
+
+            recommendation,
+
             field_size
+
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
+
         race_id,
         race_date,
+
         track,
         race_number,
-        predicted_dog,
-        predicted_box,
-        winner_dog,
-        winner_box,
-        predicted_score,
-        winner_score,
-        predicted_margin,
-        winner_margin,
-        predicted_trust,
-        winner_trust,
-        predicted_edge,
-        winner_edge,
+
+        dog,
+        box,
+
+        score,
+        margin,
+        race_trust,
+        field_edge,
+
+        recommendation,
+
         field_size,
     ))
 

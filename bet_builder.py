@@ -579,7 +579,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         and field_dominance_index(p)[0] >= 7
     ][:6]
 
-        place_anchors = [
+     place_anchors = [
         p for p in ranked
         if p["field_size"] >= 8
         and place_confidence_score(p) >= 75

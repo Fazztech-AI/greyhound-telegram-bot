@@ -23,6 +23,7 @@ from commands import (
     debug_race_command,
 )
 from database import initialise_database
+from learning import learn_from_results
 from results_updater import update_results
 
 MELBOURNE = ZoneInfo("Australia/Melbourne")
@@ -33,11 +34,16 @@ async def nightly_update(context):
         updated, skipped, reasons = update_results()
 
         print(
-            f"🌙 Nightly update complete | Updated: {updated} | Skipped: {skipped}"
+            f"🌙 Nightly results update complete. "
+            f"Updated={updated}, Skipped={skipped}"
         )
 
-        for reason in reasons:
-            print(reason)
+        if reasons:
+            for reason in reasons:
+                print(reason)
+
+        settings = learn_from_results()
+        print(f"🧠 Learning complete. Current thresholds: {settings}")
 
     except Exception as e:
         print(f"Nightly update failed: {e}")

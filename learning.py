@@ -3,7 +3,6 @@ from pathlib import Path
 
 SETTINGS_FILE = Path("learning.json")
 
-
 DEFAULT_SETTINGS = {
     "strong_single_score": 70,
     "strong_single_margin": 8,
@@ -25,9 +24,24 @@ def load_settings():
         return DEFAULT_SETTINGS.copy()
 
     with open(SETTINGS_FILE, "r") as f:
-        return json.load(f)
+        settings = json.load(f)
+
+    for key, value in DEFAULT_SETTINGS.items():
+        settings.setdefault(key, value)
+
+    return settings
 
 
 def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f, indent=4)
+
+
+def learn_from_results():
+    """
+    Placeholder learning engine.
+    Later this will adjust thresholds after enough completed results.
+    """
+    settings = load_settings()
+    save_settings(settings)
+    return settings

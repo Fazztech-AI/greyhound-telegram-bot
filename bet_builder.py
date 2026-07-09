@@ -641,7 +641,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         and race_trust_score(p)[0] >= 60
     ][:5]
 
-        avoid_races = [
+    avoid_races = [
         p for p in ranked
         if p["margin"] < 5
         or p["score"] < 50

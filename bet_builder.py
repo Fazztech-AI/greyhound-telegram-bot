@@ -237,7 +237,11 @@ ranked.append({
     "margin": margin,
         })
 
-    ranked.sort(key=lambda x: (x["weighted_score"], x["score"], x["margin"]), reverse=True)
+        ranked.sort(
+        key=lambda x: (x["weighted_score"], x["score"], x["margin"]),
+        reverse=True,
+    )
+
     return ranked
 
 

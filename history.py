@@ -11,6 +11,7 @@ from database import (
 from learning_history import (
     get_learning_summary,
     get_top_rank_learning,
+    get_winner_rank_learning,
 )
 
 def build_history_message(limit=25):
@@ -222,7 +223,8 @@ def build_threshold_report_message():
 
 def build_memory_stats_message():
     row = get_learning_summary()
-    rank = get_top_rank_learning()
+    top = get_top_rank_learning()
+    winner = get_winner_rank_learning()
 
     total = row["total"] or 0
     wins = row["wins"] or 0
@@ -230,16 +232,26 @@ def build_memory_stats_message():
     losses = row["losses"] or 0
     pending = row["pending"] or 0
 
+    learnt = winner["total"] or 0
+
     return (
         "🧠 AI MEMORY\n\n"
-        f"Stored runner records: {total}\n"
-        f"Winners recorded: {wins}\n"
-        f"Placed recorded: {places}\n"
-        f"Losses recorded: {losses}\n"
-        f"Pending results: {pending}\n\n"
-        "Top-rank learning:\n"
-        f"Races learnt: {rank['total']}\n"
-        f"Top-rated winners: {rank['top_wins']}\n"
-        f"Close misses: {rank['close_misses']}\n"
-        f"Top-rated win rate: {rank['top_win_rate']}%"
+
+        f"Stored runners: {total}\n"
+        f"Pending: {pending}\n"
+        f"Wins: {wins}\n"
+        f"Places: {places}\n"
+        f"Losses: {losses}\n\n"
+
+        "MODEL ACCURACY\n"
+        f"Races learnt: {top['total']}\n"
+        f"Top-rated winner: {top['top_wins']} ({top['top_win_rate']}%)\n"
+        f"Close misses: {top['close_misses']}\n\n"
+
+        "WHERE THE WINNER WAS RANKED\n"
+        f"#1: {winner['rank_1']}\n"
+        f"#2: {winner['rank_2']}\n"
+        f"#3: {winner['rank_3']}\n"
+        f"#4: {winner['rank_4']}\n"
+        f"Outside Top 4: {winner['outside_top4']}"
     )

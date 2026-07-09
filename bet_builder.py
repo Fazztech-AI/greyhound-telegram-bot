@@ -206,44 +206,50 @@ def scan_ranked(target_date=None, track_search=None):
         second_score = scored[1][0] if len(scored) > 1 else 0
         margin = round(best_score - second_score, 1)
 
-trust_for_weight, _, _ = race_trust_score({
-    "score": best_score,
-    "margin": margin,
-    "runner": best_runner,
-    "runners": active,
-    "field_size": len(active),
-    "full_rankings": scored,
-})
+        temp_pick = {
+            "score": best_score,
+            "margin": margin,
+            "runner": best_runner,
+            "runners": active,
+            "field_size": len(active),
+            "full_rankings": scored,
+        }
 
-edge_for_weight, _ = field_dominance_index({
-    "score": best_score,
-    "margin": margin,
-    "runner": best_runner,
-    "runners": active,
-    "field_size": len(active),
-    "full_rankings": scored,
-})
+        trust_for_weight, _, _ = race_trust_score(temp_pick)
+        edge_for_weight, _ = field_dominance_index(temp_pick)
 
-weighted_score = weighted_confidence(
-    best_score,
-    trust_for_weight,
-    edge_for_weight,
-    margin,
-)
+        weighted_score = weighted_confidence(
+            best_score,
+            trust_for_weight,
+            edge_for_weight,
+            margin,
+        )
 
-ranked.append({
-    "score": best_score,
-    "weighted_score": weighted_score,
-    "margin": margin,
+        ranked.append({
+            "score": best_score,
+            "weighted_score": weighted_score,
+            "margin": margin,
+            "race": race,
+            "runner": best_runner,
+            "runners": active,
+            "pros": pros,
+            "warnings": warnings,
+            "track": track,
+            "field_size": len(active),
+            "full_rankings": scored,
         })
 
-        ranked.sort(
-        key=lambda x: (x["weighted_score"], x["score"], x["margin"]),
+    ranked.sort(
+        key=lambda x: (
+            x["weighted_score"],
+            x["score"],
+            x["margin"],
+        ),
         reverse=True,
     )
 
     return ranked
-
+    
 
 def format_runner_short(runner):
     box = runner.get("boxNumber") or runner.get("rugNumber") or "?"

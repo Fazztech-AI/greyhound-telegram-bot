@@ -114,3 +114,23 @@ def learning_runner_exists(race_id, dog):
 
     conn.close()
     return row is not None
+
+def update_learning_result(race_id, dog, finish_position, result):
+    conn = get_connection()
+
+    conn.execute("""
+        UPDATE learning
+        SET
+            finish_position=?,
+            result=?
+        WHERE race_id=?
+        AND dog=?
+    """, (
+        finish_position,
+        result,
+        race_id,
+        dog,
+    ))
+
+    conn.commit()
+    conn.close()

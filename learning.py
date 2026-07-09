@@ -108,13 +108,14 @@ def learn_from_results():
         settings["place_confidence"] = min(88, max(72, settings["place_confidence"]))
 
         save_settings(settings)
+
+        from model_weights import learn_weights_from_memory
+        learn_weights_from_memory()
+
         print(f"🧠 Learning updated thresholds: {settings}")
         return settings
 
     except Exception as e:
         print(f"Learning error: {e}")
         save_settings(settings)
-
-    from model_weights import learn_weights_from_memory
-learn_weights_from_memory()
         return settings

@@ -8,7 +8,6 @@ from bet_builder import (
     build_best_bets_message,
     build_tracks_message,
     build_race_message,
-    build_memory_stats_message,
 )
 
 from utils import (
@@ -26,6 +25,7 @@ from history import (
     build_track_stats_message,
     build_box_stats_message,
     build_threshold_report_message,
+    build_memory_stats_message,
 )
 
 from database import (

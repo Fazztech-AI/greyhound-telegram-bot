@@ -188,3 +188,58 @@ def get_top_rank_learning():
         "close_misses": close_misses,
         "top_win_rate": round((top_wins / total) * 100, 1) if total else 0,
     }
+
+def get_winner_rank_learning():
+    conn = get_connection()
+
+    races = conn.execute("""
+        SELECT DISTINCT race_id
+        FROM learning
+        WHERE result IS NOT NULL
+    """).fetchall()
+
+    counts = {
+        "rank_1": 0,
+        "rank_2": 0,
+        "rank_3": 0,
+        "rank_4": 0,
+        "outside_top4": 0,
+        "total": 0,
+    }
+
+    for race in races:
+        rows = conn.execute("""
+            SELECT dog, score, result
+            FROM learning
+            WHERE race_id=?
+            ORDER BY score DESC
+        """, (race["race_id"],)).fetchall()
+
+        if not rows:
+            continue
+
+        winner_index = None
+
+        for i, row in enumerate(rows):
+            if row["result"] == "Won":
+                winner_index = i
+                break
+
+        if winner_index is None:
+            continue
+
+        counts["total"] += 1
+
+        if winner_index == 0:
+            counts["rank_1"] += 1
+        elif winner_index == 1:
+            counts["rank_2"] += 1
+        elif winner_index == 2:
+            counts["rank_3"] += 1
+        elif winner_index == 3:
+            counts["rank_4"] += 1
+        else:
+            counts["outside_top4"] += 1
+
+    conn.close()
+    return counts

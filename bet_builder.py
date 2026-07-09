@@ -3,6 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from database import save_pick, pick_exists
 from learning_history import save_learning_runner
+from model_weights import weighted_confidence
 
 from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
 from scorer import (
@@ -205,20 +206,38 @@ def scan_ranked(target_date=None, track_search=None):
         second_score = scored[1][0] if len(scored) > 1 else 0
         margin = round(best_score - second_score, 1)
 
-        ranked.append({
-            "score": best_score,
-            "margin": margin,
-            "race": race,
-            "runner": best_runner,
-            "runners": active,
-            "pros": pros,
-            "warnings": warnings,
-            "track": track,
-            "field_size": len(active),
-            "full_rankings": scored,
+trust_for_weight, _, _ = race_trust_score({
+    "score": best_score,
+    "margin": margin,
+    "runner": best_runner,
+    "runners": active,
+    "field_size": len(active),
+    "full_rankings": scored,
+})
+
+edge_for_weight, _ = field_dominance_index({
+    "score": best_score,
+    "margin": margin,
+    "runner": best_runner,
+    "runners": active,
+    "field_size": len(active),
+    "full_rankings": scored,
+})
+
+weighted_score = weighted_confidence(
+    best_score,
+    trust_for_weight,
+    edge_for_weight,
+    margin,
+)
+
+ranked.append({
+    "score": best_score,
+    "weighted_score": weighted_score,
+    "margin": margin,
         })
 
-    ranked.sort(key=lambda x: (x["score"], x["margin"]), reverse=True)
+    ranked.sort(key=lambda x: (x["weighted_score"], x["score"], x["margin"]), reverse=True)
     return ranked
 
 

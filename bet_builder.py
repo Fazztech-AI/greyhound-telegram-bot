@@ -649,6 +649,36 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         or field_dominance_index(p)[0] < 5
     ][:8]
 
+        used_runners = set()
+
+    def runner_key(pick):
+        race = pick["race"]
+        runner = pick["runner"]
+        return (
+            str(race.get("raceId")),
+            str(runner.get("dogName")),
+            str(runner.get("boxNumber") or runner.get("rugNumber")),
+        )
+
+    def unique_category(picks):
+        clean = []
+
+        for pick in picks:
+            key = runner_key(pick)
+
+            if key in used_runners:
+                continue
+
+            used_runners.add(key)
+            clean.append(pick)
+
+        return clean
+
+    strong_singles = unique_category(strong_singles)
+    multi_anchors = unique_category(multi_anchors)
+    place_anchors = unique_category(place_anchors)
+    top4_angles = unique_category(top4_angles)
+
     msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
 
@@ -715,30 +745,6 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     return msg[:4000]
 
-   def runner_key(pick):
-        race = pick["race"]
-        runner = pick["runner"]
-        return (
-            str(race.get("raceId")),
-            str(runner.get("dogName")),
-            str(runner.get("boxNumber") or runner.get("rugNumber")),
-        )
-
-    def unique_category(picks):
-        clean = []
-        for pick in picks:
-            key = runner_key(pick)
-            if key in used_runners:
-                continue
-            used_runners.add(key)
-            clean.append(pick)
-        return clean
-
-    strong_singles = unique_category(strong_singles)
-    multi_anchors = unique_category(multi_anchors)
-    top4_angles = unique_category(top4_angles)
-    
-    
 def build_best_bets_message(target_date=None, track_search=None):
     if target_date is None:
         target_date = melbourne_today()

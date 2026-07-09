@@ -8,7 +8,10 @@ from database import (
     debug_database,
     get_threshold_report,
 )
-from learning_history import get_learning_summary
+from learning_history import (
+    get_learning_summary,
+    get_top_rank_learning,
+)
 
 def build_history_message(limit=25):
     rows = get_history(limit)
@@ -219,6 +222,7 @@ def build_threshold_report_message():
 
 def build_memory_stats_message():
     row = get_learning_summary()
+    rank = get_top_rank_learning()
 
     total = row["total"] or 0
     wins = row["wins"] or 0
@@ -232,5 +236,10 @@ def build_memory_stats_message():
         f"Winners recorded: {wins}\n"
         f"Placed recorded: {places}\n"
         f"Losses recorded: {losses}\n"
-        f"Pending results: {pending}"
+        f"Pending results: {pending}\n\n"
+        "Top-rank learning:\n"
+        f"Races learnt: {rank['total']}\n"
+        f"Top-rated winners: {rank['top_wins']}\n"
+        f"Close misses: {rank['close_misses']}\n"
+        f"Top-rated win rate: {rank['top_win_rate']}%"
     )

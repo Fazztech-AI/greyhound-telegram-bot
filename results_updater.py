@@ -1,6 +1,6 @@
 from topaz_client import get_runners_for_race
 from database import get_pending_picks, update_pick_result
-
+from learning_history import update_learning_result
 
 def get_runner_name(runner):
     return str(runner.get("dogName") or "").strip().lower()
@@ -114,6 +114,12 @@ def update_results():
                 finish_position=finish_position,
                 starting_price=starting_price,
             )
+            update_learning_result(
+                race_id=pick["race_id"],
+                dog=pick["dog"],
+                finish_position=finish_position,
+                result=result,
+             )
 
             updated += 1
             break

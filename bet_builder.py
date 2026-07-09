@@ -750,14 +750,14 @@ def build_best_bets_message(target_date=None, track_search=None):
         target_date = melbourne_today()
 
     ranked = scan_ranked(target_date, track_search)
-save_learning_from_scan(ranked)
+    save_learning_from_scan(ranked)
+
     if not ranked:
         if track_search:
             return f"No upcoming races found for '{track_search}' on {target_date}."
         return f"No upcoming race/runner data found for {target_date}."
 
     return build_daily_betting_plan(ranked, target_date, track_search)
-
 
 def build_tracks_message(target_date=None):
     if target_date is None:

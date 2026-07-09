@@ -114,4 +114,7 @@ def learn_from_results():
     except Exception as e:
         print(f"Learning error: {e}")
         save_settings(settings)
+
+    from model_weights import learn_weights_from_memory
+learn_weights_from_memory()
         return settings

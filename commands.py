@@ -8,6 +8,7 @@ from bet_builder import (
     build_best_bets_message,
     build_tracks_message,
     build_race_message,
+    build_memory_stats_message,
 )
 
 from utils import (
@@ -181,7 +182,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     build_threshold_report_message()
                 )
                 return
-
+            if arg in ["memory", "brain"]:
+                await update.message.reply_text(build_memory_stats_message())
+                return
         await update.message.reply_text(build_statistics_message())
 
     except Exception as e:

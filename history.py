@@ -8,7 +8,7 @@ from database import (
     debug_database,
     get_threshold_report,
 )
-
+from learning_history import get_learning_summary
 
 def build_history_message(limit=25):
     rows = get_history(limit)
@@ -215,4 +215,22 @@ def build_threshold_report_message():
         f"Average race trust: {round(row['avg_trust'] or 0, 1)}\n"
         f"Average field edge: {round(row['avg_edge'] or 0, 1)}\n\n"
         "Enough data collected to start tightening thresholds."
+    )
+
+def build_memory_stats_message():
+    row = get_learning_summary()
+
+    total = row["total"] or 0
+    wins = row["wins"] or 0
+    places = row["places"] or 0
+    losses = row["losses"] or 0
+    pending = row["pending"] or 0
+
+    return (
+        "🧠 AI MEMORY\n\n"
+        f"Stored runner records: {total}\n"
+        f"Winners recorded: {wins}\n"
+        f"Placed recorded: {places}\n"
+        f"Losses recorded: {losses}\n"
+        f"Pending results: {pending}"
     )

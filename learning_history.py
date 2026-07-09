@@ -150,3 +150,41 @@ def get_learning_summary():
 
     conn.close()
     return row
+
+def get_top_rank_learning():
+    conn = get_connection()
+
+    rows = conn.execute("""
+        SELECT
+            race_id,
+            MAX(CASE WHEN result='Won' THEN dog END) AS winner,
+            MAX(CASE WHEN result='Won' THEN score END) AS winner_score,
+            MAX(score) AS top_score
+        FROM learning
+        WHERE result IS NOT NULL
+        GROUP BY race_id
+    """).fetchall()
+
+    total = 0
+    top_wins = 0
+    close_misses = 0
+
+    for row in rows:
+        if row["winner"] is None:
+            continue
+
+        total += 1
+
+        if row["winner_score"] == row["top_score"]:
+            top_wins += 1
+        elif row["top_score"] - row["winner_score"] <= 5:
+            close_misses += 1
+
+    conn.close()
+
+    return {
+        "total": total,
+        "top_wins": top_wins,
+        "close_misses": close_misses,
+        "top_win_rate": round((top_wins / total) * 100, 1) if total else 0,
+    }

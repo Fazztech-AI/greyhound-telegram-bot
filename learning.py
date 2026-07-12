@@ -40,79 +40,19 @@ def save_settings(settings):
 def learn_from_results():
     settings = load_settings()
 
-    MIN_COMPLETED = 100
-    MIN_CATEGORY = 20
-
     try:
-        from database import get_recommendation_stats
+        from database import get_statistics
 
-        rows = get_recommendation_stats()
+        stats = get_statistics()
+        completed = stats["completed"] or 0
 
-        total_completed = 0
-
-        for row in rows:
-            wins = row["wins"] or 0
-            places = row["places"] or 0
-            losses = row["losses"] or 0
-            total_completed += wins + places + losses
-
-        if total_completed < MIN_COMPLETED:
-            print(f"🧠 Learning waiting: {total_completed}/{MIN_COMPLETED} completed results")
-            save_settings(settings)
-            return settings
-
-        for row in rows:
-            rec = row["recommendation"]
-            wins = row["wins"] or 0
-            places = row["places"] or 0
-            losses = row["losses"] or 0
-
-            completed = wins + places + losses
-            if completed < MIN_CATEGORY:
-                continue
-
-            win_rate = wins / completed
-            place_rate = (wins + places) / completed
-
-            if rec == "Strong Single":
-                if win_rate < 0.40:
-                    settings["strong_single_score"] += 1
-                    settings["strong_single_trust"] += 1
-                    settings["strong_single_edge"] += 1
-                elif win_rate > 0.55:
-                    settings["strong_single_score"] = max(68, settings["strong_single_score"] - 0.5)
-
-            if rec == "Multi Anchor":
-                if place_rate < 0.65:
-                    settings["multi_anchor_score"] += 1
-                    settings["multi_anchor_trust"] += 1
-                    settings["multi_anchor_edge"] += 1
-                elif place_rate > 0.78:
-                    settings["multi_anchor_score"] = max(58, settings["multi_anchor_score"] - 0.5)
-
-            if rec == "High Place":
-                if place_rate < 0.72:
-                    settings["place_confidence"] += 1
-                elif place_rate > 0.82:
-                    settings["place_confidence"] = max(72, settings["place_confidence"] - 0.5)
-
-        # safety caps
-        settings["strong_single_score"] = min(80, max(68, settings["strong_single_score"]))
-        settings["strong_single_trust"] = min(80, max(60, settings["strong_single_trust"]))
-        settings["strong_single_edge"] = min(25, max(8, settings["strong_single_edge"]))
-
-        settings["multi_anchor_score"] = min(72, max(58, settings["multi_anchor_score"]))
-        settings["multi_anchor_trust"] = min(75, max(52, settings["multi_anchor_trust"]))
-        settings["multi_anchor_edge"] = min(20, max(6, settings["multi_anchor_edge"]))
-
-        settings["place_confidence"] = min(88, max(72, settings["place_confidence"]))
+        print(
+            f"🧠 Learning memory updated. "
+            f"Completed selections: {completed}. "
+            "Automatic threshold changes are currently paused."
+        )
 
         save_settings(settings)
-
-        from model_weights import learn_weights_from_memory
-        learn_weights_from_memory()
-
-        print(f"🧠 Learning updated thresholds: {settings}")
         return settings
 
     except Exception as e:

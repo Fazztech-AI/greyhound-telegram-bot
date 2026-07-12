@@ -290,24 +290,47 @@ def is_race_to_avoid(pick):
 
 
 def get_same_race_top4_angle(pick):
+def get_same_race_top4_angle(pick):
     scored = pick["full_rankings"]
 
-    if pick["field_size"] != 6:
-        return None
-
-    if len(scored) < 6:
+    if pick["field_size"] != 6 or len(scored) < 6:
         return None
 
     top3 = scored[:3]
+
+    first_score = top3[0][0]
+    second_score = top3[1][0]
     third_score = top3[2][0]
+
+    fourth_score = scored[3][0]
     fifth_score = scored[4][0]
 
     gap_to_danger = round(third_score - fifth_score, 1)
 
-    if gap_to_danger < 6:
+    # Every included runner must be genuinely competitive.
+    if first_score < 60:
         return None
 
-    risk = "🟢 Strong Top 4 setup" if gap_to_danger >= 10 else "🟡 Playable Top 4 setup"
+    if second_score < 55:
+        return None
+
+    if third_score < 52:
+        return None
+
+    # The third selection must have a meaningful advantage
+    # over the runners most likely to knock it out of the Top 4.
+    if gap_to_danger < 8:
+        return None
+
+    # Avoid races where rankings below the favourite are tightly bunched.
+    if third_score - fourth_score < 2:
+        return None
+
+    risk = (
+        "🟢 Strong Top 4 setup"
+        if gap_to_danger >= 12 and third_score >= 58
+        else "🟡 Playable Top 4 setup"
+    )
 
     return {
         "top3": top3,

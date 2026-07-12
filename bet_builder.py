@@ -290,7 +290,6 @@ def is_race_to_avoid(pick):
 
 
 def get_same_race_top4_angle(pick):
-def get_same_race_top4_angle(pick):
     scored = pick["full_rankings"]
 
     if pick["field_size"] != 6 or len(scored) < 6:

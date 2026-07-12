@@ -240,12 +240,11 @@ def scan_ranked(target_date=None, track_search=None):
         })
 
     ranked.sort(
-        key=lambda x: (
-            x["weighted_score"],
-            x["score"],
-            x["margin"],
-        ),
-        reverse=True,
+    key=lambda x: (
+        x["score"],
+        x["margin"],
+    ),
+    reverse=True,
     )
 
     return ranked

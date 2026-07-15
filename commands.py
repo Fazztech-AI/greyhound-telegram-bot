@@ -2,7 +2,6 @@ import re
 
 from telegram import Update
 from telegram.ext import ContextTypes
-from topaz_client import debug_race_runs
 
 from bet_builder import (
     build_best_bets_message,

@@ -1,6 +1,7 @@
 from topaz_client import get_runners_for_race
 from database import get_pending_picks, update_pick_result
 from learning_history import update_learning_result
+from topaz_client import clear_topaz_cache
 
 def get_runner_name(runner):
     return str(runner.get("dogName") or "").strip().lower()
@@ -63,6 +64,8 @@ def result_from_position(position):
 
 
 def update_results():
+    clear_topaz_cache()
+    
     pending = get_pending_picks()
     updated = 0
     skipped = 0

@@ -87,3 +87,10 @@ def debug_race_runs(race_id):
         print("RUNNER DEBUG:", runner)
 
     return runners
+
+def clear_topaz_cache():
+    """
+    Clear cached race and runner data so the next scan loads fresh Topaz data.
+    """
+    get_all_races_for_date_cached.cache_clear()
+    get_runners_for_race_cached.cache_clear()

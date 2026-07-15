@@ -5,7 +5,11 @@ from database import save_pick, pick_exists
 from learning_history import save_learning_runner
 from model_weights import weighted_confidence
 
-from topaz_client import get_all_races_for_date, get_runners_for_races_parallel
+from topaz_client import (
+    get_all_races_for_date,
+    get_runners_for_races_parallel,
+    clear_topaz_cache,
+)
 from scorer import (
     score_runner,
     confidence_label,

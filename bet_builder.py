@@ -159,6 +159,8 @@ def active_runners_only(runners):
 def scan_ranked(target_date=None, track_search=None):
     if target_date is None:
         target_date = melbourne_today()
+        
+        clear_topaz_cache()
 
     races = get_all_races_for_date(target_date)
     meeting_track_map = build_meeting_track_map(races)

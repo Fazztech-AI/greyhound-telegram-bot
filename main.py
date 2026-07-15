@@ -43,12 +43,8 @@ async def nightly_update(context):
             for reason in reasons:
                 print(reason)
 
-        settings = learn_from_results()
-        print(f"🧠 Learning complete. Current thresholds: {settings}")
-
     except Exception as e:
         print(f"Nightly update failed: {e}")
-
 
 def main():
     if not BOT_TOKEN:

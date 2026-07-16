@@ -659,14 +659,21 @@ def place_confidence_label(score):
 def build_daily_betting_plan(ranked, target_date, track_search=None):
     thresholds = load_settings()
 
+    # Hard rule: never recommend a race with trust below 55.
+    ranked = [
+        p for p in ranked
+        if race_trust_score(p)[0] >= 55
+    ]
+
     title = f"🐕 DAILY BETTING PLAN — {target_date}"
     if track_search:
         title += f"\nTrack search: {track_search}"
 
     msg = title + "\n\n"
     msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"
-    msg += "Singles: use only when price is worth it.\n"
+    msg += "Singles: use only when the price is worth it.\n"
     msg += "Place chances only show for 8-runner races where 3rd dividend is available.\n"
+    msg += "Races with trust below 55 are rejected.\n"
     msg += "Finished races and scratched runners are filtered out.\n\n"
 
     strong_singles = [
@@ -688,20 +695,14 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     place_anchors = [
         p for p in ranked
         if p["field_size"] >= 8
+        and race_trust_score(p)[0] >= 55
         and place_confidence_score(p) >= thresholds["place_confidence"]
     ][:6]
-
-    top4_angles = [
-        p for p in ranked
-        if get_same_race_top4_angle(p) is not None
-        and race_trust_score(p)[0] >= 60
-    ][:5]
 
     avoid_races = [
         p for p in ranked
         if p["margin"] < 5
         or p["score"] < 50
-        or race_trust_score(p)[0] < 50
         or field_dominance_index(p)[0] < 5
     ][:8]
 
@@ -710,6 +711,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     def runner_key(pick):
         race = pick["race"]
         runner = pick["runner"]
+
         return (
             str(race.get("raceId")),
             str(runner.get("dogName")),
@@ -733,7 +735,6 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
     strong_singles = unique_category(strong_singles)
     multi_anchors = unique_category(multi_anchors)
     place_anchors = unique_category(place_anchors)
-    top4_angles = unique_category(top4_angles)
 
     msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
@@ -771,35 +772,47 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
-    msg += "🏁 SAME RACE TOP 4 ANGLES\n"
-    msg += "Best for 6-runner races. Use model top 3 to finish Top 4.\n\n"
-
-    if top4_angles:
-        for i, pick in enumerate(top4_angles, start=1):
-            save_pick_to_history(pick, "Top 4 Angle")
-            angle = get_same_race_top4_angle(pick)
-            msg += f"{i}. {format_leg(pick)}\n"
-            msg += f"Setup: {angle['risk']}\n"
-            msg += "Use: "
-            msg += ", ".join(format_runner_short(item[1]) for item in angle["top3"])
-            msg += f"\nGap to danger: {angle['gap_to_danger']} pts\n\n"
-    else:
-        msg += "No strong 6-runner Top 4 setups found.\n"
-
-    msg += "━━━━━━━━━━━━━━\n\n"
-
     msg += "🚫 AVOID / MESSY RACES\n"
-    msg += "Low edge or weak model confidence. Be careful with these.\n\n"
+    msg += "Only races with trust of 55 or above are considered here.\n\n"
 
     if avoid_races:
         for i, pick in enumerate(avoid_races, start=1):
-            msg += f"{i}. {format_leg(pick)} — {dominance_label(pick['margin'])}\n"
+            msg += (
+                f"{i}. {format_leg(pick)} — "
+                f"{dominance_label(pick['margin'])}\n"
+            )
     else:
-        msg += "No obvious messy races from the top-ranked list.\n"
+        msg += "No obvious messy races from the accepted race list.\n"
 
     msg += "\nUse /race Track RaceNumber for a full race breakdown."
 
     return msg[:4000]
+
+
+def build_best_bets_message(target_date=None, track_search=None):
+    if target_date is None:
+        target_date = melbourne_today()
+
+    ranked = scan_ranked(target_date, track_search)
+    save_learning_from_scan(ranked)
+
+    if not ranked:
+        if track_search:
+            return (
+                f"No upcoming races found for "
+                f"'{track_search}' on {target_date}."
+            )
+
+        return f"No upcoming race/runner data found for {target_date}."
+
+    return build_daily_betting_plan(
+        ranked,
+        target_date,
+        track_search,
+    )
+
+
+
 
 def build_best_bets_message(target_date=None, track_search=None):
     if target_date is None:

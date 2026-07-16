@@ -2,6 +2,7 @@ import re
 
 from telegram import Update
 from telegram.ext import ContextTypes
+from horse_builder import build_horse_bets_message
 
 from bet_builder import (
     build_best_bets_message,
@@ -41,26 +42,82 @@ async def send_long(update: Update, text: str):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🐕 Greyhound AI v1.0 online.\n\n"
-        "Commands:\n"
+        "🏇 Australian Racing AI v1.0\n\n"
+
+        "🐕 GREYHOUNDS\n"
         "/scan\n"
+        "/scan greys\n"
         "/tracks\n"
         "/tracks tomorrow\n"
         "/track Geelong\n"
         "/track The Meadows tomorrow\n"
         "/race Geelong 5\n"
         "/race The Meadows 8\n\n"
-        "You can also just type a track name."
+
+        "🐎 HORSES\n"
+        "/scan horses (Coming Soon)\n\n"
+
+        "💬 You can also just type a greyhound track name."
     )
 
 
 async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Scanning and rating all races...")
-    try:
-        await send_long(update, build_best_bets_message())
-    except Exception as e:
-        await update.message.reply_text(f"Scanner error:\n{e}")
+    code = context.args[0].strip().lower() if context.args else "greys"
 
+    greyhound_names = {
+        "grey",
+        "greys",
+        "greyhound",
+        "greyhounds",
+        "dogs",
+    }
+
+    horse_names = {
+        "horse",
+        "horses",
+        "thoroughbred",
+        "thoroughbreds",
+    }
+
+    if code in greyhound_names:
+        await update.message.reply_text(
+            "🔍 Scanning and rating Australian greyhound races..."
+        )
+
+        try:
+            await send_long(
+                update,
+                build_best_bets_message(),
+            )
+        except Exception as e:
+            await update.message.reply_text(
+                f"Greyhound scanner error:\n{e}"
+            )
+
+        return
+
+    if code in horse_names:
+        await update.message.reply_text(
+            "🔍 Scanning Australian horse races..."
+        )
+
+        try:
+            await send_long(
+                update,
+                build_horse_bets_message(),
+            )
+        except Exception as e:
+            await update.message.reply_text(
+                f"Horse scanner error:\n{e}"
+            )
+
+        return
+
+    await update.message.reply_text(
+        "Use:\n"
+        "/scan greys\n"
+        "/scan horses"
+    )
 
 async def tracks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args).strip()

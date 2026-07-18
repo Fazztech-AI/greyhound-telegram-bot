@@ -57,12 +57,19 @@ def _betfair_request(method, params):
             json=payload,
             timeout=30,
         )
-        response.raise_for_status()
 
     except requests.RequestException as exc:
         raise BetfairAPIError(
             f"Betfair connection error: {exc}"
         ) from exc
+
+    if response.status_code != 200:
+        response_body = response.text.strip()
+
+        raise BetfairAPIError(
+            f"HTTP {response.status_code}\n"
+            f"Response: {response_body[:1000]}"
+        )
 
     try:
         data = response.json()

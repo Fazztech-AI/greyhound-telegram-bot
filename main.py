@@ -21,6 +21,7 @@ from commands import (
     record_command,
     update_command,
     debug_race_command,
+    test_horses,
 )
 from database import initialise_database
 from learning import learn_from_results

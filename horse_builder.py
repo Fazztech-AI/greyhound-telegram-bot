@@ -420,7 +420,15 @@ def _add_selection_section(
 def build_horse_bets_message(
     limit: int = MAX_SCAN_RACES,
 ) -> str:
-    raw_races = get_horse_races(limit=limit)
+    raw_races = [
+    race
+    for race in raw_races
+    if str(race.get("country", "")).upper() in {
+        "AU",
+        "AUS",
+        "AUSTRALIA",
+    }
+    ]
 
     if isinstance(raw_races, list):
         races = raw_races

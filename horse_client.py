@@ -54,12 +54,29 @@ def _get(endpoint: str, params: dict[str, Any] | None = None) -> Any:
             f"PuntersEdge returned HTTP {response.status_code}: {body}"
         )
 
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise PuntersEdgeError(
-            f"PuntersEdge returned invalid JSON: {response.text[:1000]}"
-        ) from exc
+    import json
+
+try:
+    data = response.json()
+
+    # Temporary debug
+    if endpoint == "/racing/next-to-go":
+        races = data if isinstance(data, list) else data.get("races", data.get("data", []))
+
+        for race in races:
+            if (
+                str(race.get("venue", "")).lower() == "belmont"
+                and race.get("race_number") == 7
+            ):
+                print("========== BELMONT R7 ==========")
+                print(json.dumps(race, indent=2))
+
+    return data
+
+except ValueError as exc:
+    raise PuntersEdgeError(
+        f"PuntersEdge returned invalid JSON: {response.text[:1000]}"
+    ) from exc
 
 
 def check_usage() -> Any:

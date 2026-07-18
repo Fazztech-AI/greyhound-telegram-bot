@@ -134,7 +134,8 @@ def _runner_summary(
 
     lines = [
         _race_heading(race),
-        f"#{number} {name}",
+        f"{name}",
+        f"Barrier: {barrier}",
         f"Rating: {runner.get('score', 0):.1f}/100",
         f"Confidence: {runner.get('confidence', 'Unknown')}",
         (

@@ -129,7 +129,7 @@ def _runner_summary(
     runner: dict[str, Any],
     include_value: bool = False,
 ) -> str:
-    number = runner.get("number")
+    barrier = runner.get("number")
     name = runner.get("name") or "Unknown Runner"
 
     lines = [

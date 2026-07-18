@@ -469,9 +469,29 @@ def score_horse_race(
     race: dict[str, Any],
 ) -> dict[str, Any]:
     """Score and rank every runner in a race."""
-    runners = _merge_duplicate_runners(
-        race.get("runners") or []
-    )
+
+    raw_runners = race.get("runners") or []
+
+    active_runners = []
+
+    for runner in raw_runners:
+        status = str(runner.get("status") or "").lower()
+
+        if runner.get("scratched") is True:
+            continue
+
+        if status in {
+            "scratched",
+            "scratch",
+            "late scratching",
+            "withdrawn",
+            "removed",
+        }:
+            continue
+
+        active_runners.append(runner)
+
+    runners = _merge_duplicate_runners(active_runners)
 
     scored_runners = [
         score_horse_runner(runner)

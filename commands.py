@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from horse_builder import build_horse_bets_message
 
+from horse_client import check_usage, get_horse_races, PuntersEdgeError
 from bet_builder import (
     build_best_bets_message,
     build_tracks_message,

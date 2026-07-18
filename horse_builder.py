@@ -420,15 +420,7 @@ def _add_selection_section(
 def build_horse_bets_message(
     limit: int = MAX_SCAN_RACES,
 ) -> str:
-    raw_races = [
-    race
-    for race in raw_races
-    if str(race.get("country", "")).upper() in {
-        "AU",
-        "AUS",
-        "AUSTRALIA",
-    }
-    ]
+    raw_races = get_horse_races(limit=limit)
 
     if isinstance(raw_races, list):
         races = raw_races
@@ -450,6 +442,18 @@ def build_horse_bets_message(
         raise RuntimeError(
             "PuntersEdge response did not contain a race list."
         )
+
+    # Only Australian meetings
+    races = [
+        race
+        for race in races
+        if str(race.get("country") or "").upper()
+        in {
+            "AU",
+            "AUS",
+            "AUSTRALIA",
+        }
+    ]
 
     scored_races = score_horse_races(races)
     scored_races = _deduplicate_scored_races(scored_races)

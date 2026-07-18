@@ -307,3 +307,35 @@ async def debug_race_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     except Exception as e:
         await update.message.reply_text(f"Debug race error:\n{e}")
+
+async def test_horses(update, context):
+    await update.message.reply_text("🐎 Testing PuntersEdge horse API...")
+
+    try:
+        usage = check_usage()
+        races = get_horse_races(limit=5)
+
+        print("PUNTERSEDGE USAGE:")
+        print(usage)
+
+        print("PUNTERSEDGE HORSE DATA:")
+        print(races)
+
+        await update.message.reply_text(
+            "✅ PuntersEdge API connected successfully.\n"
+            "Check Railway logs for the raw horse-racing data."
+        )
+
+    except PuntersEdgeError as exc:
+        print(f"PUNTERSEDGE ERROR: {exc}")
+
+        await update.message.reply_text(
+            f"❌ PuntersEdge API error:\n{exc}"
+        )
+
+    except Exception as exc:
+        print(f"UNEXPECTED HORSE TEST ERROR: {exc}")
+
+        await update.message.reply_text(
+            f"❌ Unexpected error:\n{exc}"
+        )

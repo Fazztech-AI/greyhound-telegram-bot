@@ -9,7 +9,7 @@ from config import BETFAIR_APP_KEY, BETFAIR_SESSION_TOKEN
 MELBOURNE_TZ = ZoneInfo("Australia/Melbourne")
 
 BETFAIR_API_URL = (
-    "https://api.betfair.com/exchange/betting/json-rpc/v1"
+    "https://api-au.betfair.com/exchange/betting/json-rpc/v1"
 )
 
 HORSE_RACING_EVENT_TYPE_ID = "7"

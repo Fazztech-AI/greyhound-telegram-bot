@@ -3,7 +3,6 @@ import re
 from telegram import Update
 from telegram.ext import ContextTypes
 from horse_builder import build_horse_bets_message
-from telegram.ext import CommandHandler
 
 from horse_client import check_usage, get_horse_races, PuntersEdgeError
 from bet_builder import (

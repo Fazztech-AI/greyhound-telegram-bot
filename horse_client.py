@@ -3,9 +3,8 @@ from typing import Any
 
 import requests
 
-
 BASE_URL = "https://puntersedge.online/api/v1"
-API_KEY = os.getenv("PUNTERSEDGE_API_KEY")
+API_KEY = os.getenv("PUNTERSEDGE_API_KEY", "").strip()
 
 
 class PuntersEdgeError(Exception):
@@ -17,6 +16,17 @@ def _headers() -> dict[str, str]:
         raise PuntersEdgeError(
             "PUNTERSEDGE_API_KEY is missing from Railway variables."
         )
+
+    print(
+        "PuntersEdge key loaded:",
+        bool(API_KEY),
+        "length:",
+        len(API_KEY),
+        "start:",
+        API_KEY[:4],
+        "end:",
+        API_KEY[-4:],
+    )
 
     return {
         "X-API-Key": API_KEY,
@@ -53,16 +63,12 @@ def _get(endpoint: str, params: dict[str, Any] | None = None) -> Any:
 
 
 def check_usage() -> Any:
-    """Check remaining monthly API credits."""
+    """Return API usage information."""
     return _get("/usage")
 
 
 def get_horse_races(limit: int = 10) -> Any:
-    """
-    Return upcoming horse races with runners and available prices.
-
-    The next-to-go endpoint costs 2 credits per request.
-    """
+    """Return upcoming horse races."""
     return _get(
         "/racing/next-to-go",
         params={
@@ -73,11 +79,7 @@ def get_horse_races(limit: int = 10) -> Any:
 
 
 def get_horse_events(hours_ahead: int = 24) -> Any:
-    """
-    Return upcoming horse-racing events.
-
-    This endpoint costs 1 credit per request.
-    """
+    """Return upcoming horse racing events."""
     return _get(
         "/racing/events",
         params={

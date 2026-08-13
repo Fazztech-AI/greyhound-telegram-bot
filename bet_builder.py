@@ -644,6 +644,169 @@ def place_confidence_score(pick):
 
     return min(100, round(score, 1))
 
+def top4_confidence_score(pick):
+    runner = pick["runner"]
+
+    score = 0
+    reasons = []
+    warnings = []
+
+    race_trust, _, _ = race_trust_score(pick)
+    field_edge, _ = field_dominance_index(pick)
+
+    last5 = parse_last5(runner.get("last5"))
+
+    # -------------------------------------------------
+    # 1. Recent Top 4 consistency — MOST IMPORTANT
+    # -------------------------------------------------
+
+    if last5:
+        top4_count = sum(1 for pos in last5 if pos <= 4)
+        top3_count = sum(1 for pos in last5 if pos <= 3)
+        wins = sum(1 for pos in last5 if pos == 1)
+
+        top4_rate = top4_count / len(last5)
+
+        if top4_count == 5:
+            score += 40
+            reasons.append("Top 4 in all last 5")
+
+        elif top4_count == 4:
+            score += 32
+            reasons.append("Top 4 in 4 of last 5")
+
+        elif top4_count == 3:
+            score += 18
+            reasons.append("Top 4 in 3 of last 5")
+
+        else:
+            score += 5
+            warnings.append("Weak recent Top 4 record")
+
+        if top3_count >= 4:
+            score += 8
+            reasons.append("Strong Top 3 consistency")
+
+        elif top3_count >= 3:
+            score += 5
+
+        if wins >= 2:
+            score += 4
+
+    else:
+        top4_count = 0
+        top4_rate = 0
+
+        score -= 15
+        warnings.append("No reliable recent form")
+
+    # -------------------------------------------------
+    # 2. Race trust
+    # -------------------------------------------------
+
+    if race_trust >= 80:
+        score += 18
+        reasons.append("High-trust race")
+
+    elif race_trust >= 70:
+        score += 14
+
+    elif race_trust >= 60:
+        score += 8
+
+    else:
+        score -= 15
+        warnings.append("Low race trust")
+
+    # -------------------------------------------------
+    # 3. Overall model strength
+    # -------------------------------------------------
+
+    if pick["score"] >= 75:
+        score += 15
+        reasons.append("Strong model rating")
+
+    elif pick["score"] >= 65:
+        score += 10
+
+    elif pick["score"] >= 58:
+        score += 5
+
+    else:
+        score -= 10
+        warnings.append("Weak model rating")
+
+    # -------------------------------------------------
+    # 4. Field dominance
+    # -------------------------------------------------
+
+    if field_edge >= 15:
+        score += 10
+        reasons.append("Clear field edge")
+
+    elif field_edge >= 10:
+        score += 7
+
+    elif field_edge >= 6:
+        score += 3
+
+    # -------------------------------------------------
+    # 5. Field size
+    # -------------------------------------------------
+
+    field_size = pick["field_size"]
+
+    if field_size == 6:
+        score += 10
+        reasons.append("Excellent field size for Top 4")
+
+    elif field_size == 7:
+        score += 8
+
+    elif field_size == 8:
+        score += 6
+
+    elif field_size > 8:
+        score -= 5
+        warnings.append("Large field")
+
+    # -------------------------------------------------
+    # 6. Experience
+    # -------------------------------------------------
+
+    total_form_count = runner.get("totalFormCount")
+
+    try:
+        total_form_count = int(total_form_count)
+
+        if total_form_count >= 10:
+            score += 7
+
+        elif total_form_count >= 5:
+            score += 4
+
+        elif total_form_count <= 1:
+            score -= 10
+            warnings.append("Very limited exposed form")
+
+    except Exception:
+        score -= 5
+
+    # -------------------------------------------------
+    # Final
+    # -------------------------------------------------
+
+    score = round(max(0, min(score, 100)), 1)
+
+    return {
+        "score": score,
+        "top4_count": top4_count,
+        "top4_rate": round(top4_rate * 100, 1),
+        "last5": last5,
+        "reasons": reasons,
+        "warnings": warnings,
+    }
+
 def place_confidence_label(score):
     if score >= 90:
         return "⭐⭐⭐⭐⭐ Elite"

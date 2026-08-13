@@ -819,92 +819,9 @@ def place_confidence_label(score):
         return "⭐⭐ Good"
     else:
         return "⭐ Speculative"
-    
-def build_daily_betting_plan(ranked, target_date, track_search=None):
-    thresholds = load_settings()
 
-    # Hard rule: never recommend a race with trust below 55.
-    ranked = [
-        p for p in ranked
-        if race_trust_score(p)[0] >= 55
-    ]
 
-    title = f"🐕 DAILY BETTING PLAN — {target_date}"
-    if track_search:
-        title += f"\nTrack search: {track_search}"
-
-    msg = title + "\n\n"
-    msg += "Bot role: find strong runners. You decide single vs multi based on Sportsbet/TAB odds.\n"
-    msg += "Singles: use only when the price is worth it.\n"
-    msg += "Place chances only show for 8-runner races where 3rd dividend is available.\n"
-    msg += "Races with trust below 55 are rejected.\n"
-    msg += "Finished races and scratched runners are filtered out.\n\n"
-
-    strong_singles = [
-        p for p in ranked
-        if p["score"] >= thresholds["strong_single_score"]
-        and p["margin"] >= thresholds["strong_single_margin"]
-        and race_trust_score(p)[0] >= thresholds["strong_single_trust"]
-        and field_dominance_index(p)[0] >= thresholds["strong_single_edge"]
-    ][:6]
-
-    multi_anchors = [
-        p for p in ranked
-        if p["score"] >= thresholds["multi_anchor_score"]
-        and p["margin"] >= thresholds["multi_anchor_margin"]
-        and race_trust_score(p)[0] >= thresholds["multi_anchor_trust"]
-        and field_dominance_index(p)[0] >= thresholds["multi_anchor_edge"]
-    ][:6]
-
-    top4_anchors = [
-        p for p in ranked
-        if p["field_size"] >= 6
-        and race_trust_score(p)[0] >= 55
-        and top4_confidence_score(p)["score"] >= 80
-    ][:6]
-
-    avoid_races = [
-        p for p in ranked
-        if p["margin"] < 5
-        or p["score"] < 50
-        or field_dominance_index(p)[0] < 5
-    ][:8]
-
-    used_runners = set()
-
-    def runner_key(pick):
-        race = pick["race"]
-        runner = pick["runner"]
-
-        return (
-            str(race.get("raceId")),
-            str(runner.get("dogName")),
-            str(runner.get("boxNumber") or runner.get("rugNumber")),
-        )
-
-    def unique_category(picks):
-        clean = []
-
-        for pick in picks:
-            key = runner_key(pick)
-
-            if key in used_runners:
-                continue
-
-            used_runners.add(key)
-            clean.append(pick)
-
-        return clean
-
-    strong_singles = unique_category(strong_singles)
-    multi_anchors = unique_category(multi_anchors)
-    top4_anchors = unique_category(top4_anchors)
-
-    msg += "🔥 STRONG SINGLE CANDIDATES\n"
-    msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"
-
-    if strong_singles:
-        for i, pick in enumerate(strong_singles, start=1):
+   
 def build_daily_betting_plan(ranked, target_date, track_search=None):
     thresholds = load_settings()
 

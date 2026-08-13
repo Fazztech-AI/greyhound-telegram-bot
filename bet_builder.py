@@ -898,7 +898,7 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     strong_singles = unique_category(strong_singles)
     multi_anchors = unique_category(multi_anchors)
-    place_anchors = unique_category(place_anchors)
+    top4_anchors = unique_category(top4_anchors)
 
     msg += "🔥 STRONG SINGLE CANDIDATES\n"
     msg += "Check these for win/place odds. Best used when the price is worth it.\n\n"

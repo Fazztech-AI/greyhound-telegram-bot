@@ -856,11 +856,11 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
         and field_dominance_index(p)[0] >= thresholds["multi_anchor_edge"]
     ][:6]
 
-    place_anchors = [
+    top4_anchors = [
         p for p in ranked
-        if p["field_size"] >= 8
+        if p["field_size"] >= 6
         and race_trust_score(p)[0] >= 55
-        and place_confidence_score(p) >= thresholds["place_confidence"]
+        and top4_confidence_score(p)["score"] >= 80
     ][:6]
 
     avoid_races = [
@@ -924,15 +924,22 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
-    msg += "🛡 HIGH PLACE CHANCES\n"
-    msg += "Only shown for 8-runner races where 3rd dividend is available.\n\n"
+    msg += "🎯 MORE PLACES — TOP 4\n"
+    msg += "Only high-confidence dogs to finish anywhere 1st–4th.\n\n"
 
-    if place_anchors:
-        for i, pick in enumerate(place_anchors, start=1):
-            save_pick_to_history(pick, "High Place")
-            msg += format_short_pick(pick, i) + "\n"
-    else:
-        msg += "No strong 8-runner place candidates found.\n"
+if top4_anchors:
+    for i, pick in enumerate(top4_anchors, start=1):
+        top4 = top4_confidence_score(pick)
+        runner = pick["runner"]
+
+        msg += f"{i}. {format_leg(pick)}\n"
+        msg += f"Top 4 confidence: {top4['score']}/100\n"
+        msg += f"Recent Top 4 rate: {top4['top4_rate']}%\n"
+        msg += f"Last 5: {top4['last5']}\n"
+        msg += f"Race trust: {race_trust_score(pick)[0]}/100\n\n"
+
+else:
+    msg += "No strong Top 4 candidates found.\n"
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 

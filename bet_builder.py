@@ -16,6 +16,7 @@ from scorer import (
     dominance_label,
     race_risk_label,
     suggested_bet_type,
+    parse_last5,
 )
 from learning import load_settings
 from utils import normalise, melbourne_today

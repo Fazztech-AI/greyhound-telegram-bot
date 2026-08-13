@@ -905,57 +905,257 @@ def build_daily_betting_plan(ranked, target_date, track_search=None):
 
     if strong_singles:
         for i, pick in enumerate(strong_singles, start=1):
-            save_pick_to_history(pick, "Strong Single")
+def build_daily_betting_plan(ranked, target_date, track_search=None):
+    thresholds = load_settings()
+
+    # Hard rule: never recommend a race with trust below 55.
+    ranked = [
+        p for p in ranked
+        if race_trust_score(p)[0] >= 55
+    ]
+
+    title = f"🐕 DAILY BETTING PLAN — {target_date}"
+
+    if track_search:
+        title += f"\nTrack search: {track_search}"
+
+    msg = title + "\n\n"
+
+    msg += (
+        "Bot role: find strong runners. "
+        "You decide single vs multi based on Sportsbet/TAB odds.\n"
+    )
+    msg += "Singles: use only when the price is worth it.\n"
+    msg += (
+        "Top 4 selections are chosen specifically for "
+        "Sportsbet More Places markets.\n"
+    )
+    msg += "Races with trust below 55 are rejected.\n"
+    msg += "Finished races and scratched runners are filtered out.\n\n"
+
+    # ---------------------------------------------------------
+    # STRONG SINGLES
+    # ---------------------------------------------------------
+
+    strong_singles = [
+        p for p in ranked
+        if p["score"] >= thresholds["strong_single_score"]
+        and p["margin"] >= thresholds["strong_single_margin"]
+        and race_trust_score(p)[0] >= thresholds["strong_single_trust"]
+        and field_dominance_index(p)[0]
+        >= thresholds["strong_single_edge"]
+    ][:6]
+
+    # ---------------------------------------------------------
+    # MULTI ANCHORS
+    # ---------------------------------------------------------
+
+    multi_anchors = [
+        p for p in ranked
+        if p["score"] >= thresholds["multi_anchor_score"]
+        and p["margin"] >= thresholds["multi_anchor_margin"]
+        and race_trust_score(p)[0] >= thresholds["multi_anchor_trust"]
+        and field_dominance_index(p)[0]
+        >= thresholds["multi_anchor_edge"]
+    ][:6]
+
+    # ---------------------------------------------------------
+    # SPORTSBet MORE PLACES — TOP 4
+    # ---------------------------------------------------------
+
+    top4_anchors = [
+        p for p in ranked
+        if p["field_size"] >= 6
+        and race_trust_score(p)[0] >= 55
+        and top4_confidence_score(p)["score"] >= 80
+    ][:6]
+
+    # ---------------------------------------------------------
+    # AVOID RACES
+    # ---------------------------------------------------------
+
+    avoid_races = [
+        p for p in ranked
+        if p["margin"] < 5
+        or p["score"] < 50
+        or field_dominance_index(p)[0] < 5
+    ][:8]
+
+    # ---------------------------------------------------------
+    # PREVENT SAME DOG APPEARING IN MULTIPLE SECTIONS
+    # ---------------------------------------------------------
+
+    used_runners = set()
+
+    def runner_key(pick):
+        race = pick["race"]
+        runner = pick["runner"]
+
+        return (
+            str(race.get("raceId")),
+            str(runner.get("dogName")),
+            str(
+                runner.get("boxNumber")
+                or runner.get("rugNumber")
+            ),
+        )
+
+    def unique_category(picks):
+        clean = []
+
+        for pick in picks:
+            key = runner_key(pick)
+
+            if key in used_runners:
+                continue
+
+            used_runners.add(key)
+            clean.append(pick)
+
+        return clean
+
+    strong_singles = unique_category(strong_singles)
+    multi_anchors = unique_category(multi_anchors)
+    top4_anchors = unique_category(top4_anchors)
+
+    # ---------------------------------------------------------
+    # STRONG SINGLE OUTPUT
+    # ---------------------------------------------------------
+
+    msg += "🔥 STRONG SINGLE CANDIDATES\n"
+    msg += (
+        "Check these for win/place odds. "
+        "Best used when the price is worth it.\n\n"
+    )
+
+    if strong_singles:
+        for i, pick in enumerate(strong_singles, start=1):
+            save_pick_to_history(
+                pick,
+                "Strong Single",
+            )
+
             msg += format_short_pick(pick, i) + "\n"
+
     else:
         msg += "No strong single candidates found.\n"
+
+    # ---------------------------------------------------------
+    # MULTI OUTPUT
+    # ---------------------------------------------------------
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
     msg += "🧱 MULTI ANCHORS\n"
-    msg += "High-confidence runners that may be too short as singles but useful in multis.\n\n"
+    msg += (
+        "High-confidence runners that may be too short "
+        "as singles but useful in multis.\n\n"
+    )
 
     if multi_anchors:
         for i, pick in enumerate(multi_anchors, start=1):
-            save_pick_to_history(pick, "Multi Anchor")
+            save_pick_to_history(
+                pick,
+                "Multi Anchor",
+            )
+
             msg += format_short_pick(pick, i) + "\n"
+
     else:
         msg += "No strong multi anchors found.\n"
+
+    # ---------------------------------------------------------
+    # MORE PLACES — TOP 4 OUTPUT
+    # ---------------------------------------------------------
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
     msg += "🎯 MORE PLACES — TOP 4\n"
-    msg += "Only high-confidence dogs to finish anywhere 1st–4th.\n\n"
+    msg += (
+        "Dogs selected specifically to finish anywhere "
+        "from 1st to 4th.\n"
+    )
+    msg += (
+        "Requires strong recent Top 4 consistency "
+        "and race trust of at least 55.\n\n"
+    )
 
-if top4_anchors:
-    for i, pick in enumerate(top4_anchors, start=1):
-        top4 = top4_confidence_score(pick)
-        runner = pick["runner"]
+    if top4_anchors:
+        for i, pick in enumerate(
+            top4_anchors,
+            start=1,
+        ):
+            top4 = top4_confidence_score(pick)
 
-        msg += f"{i}. {format_leg(pick)}\n"
-        msg += f"Top 4 confidence: {top4['score']}/100\n"
-        msg += f"Recent Top 4 rate: {top4['top4_rate']}%\n"
-        msg += f"Last 5: {top4['last5']}\n"
-        msg += f"Race trust: {race_trust_score(pick)[0]}/100\n\n"
+            msg += f"{i}. {format_leg(pick)}\n"
+            msg += (
+                f"Top 4 confidence: "
+                f"{top4['score']}/100\n"
+            )
+            msg += (
+                f"Recent Top 4 rate: "
+                f"{top4['top4_rate']}%\n"
+            )
+            msg += (
+                f"Last 5: "
+                f"{top4['last5']}\n"
+            )
+            msg += (
+                f"Race trust: "
+                f"{race_trust_score(pick)[0]}/100\n"
+            )
 
-else:
-    msg += "No strong Top 4 candidates found.\n"
+            if top4["reasons"]:
+                msg += (
+                    "Why: "
+                    + ", ".join(top4["reasons"][:3])
+                    + "\n"
+                )
+
+            if top4["warnings"]:
+                msg += (
+                    "Warnings: "
+                    + ", ".join(top4["warnings"][:2])
+                    + "\n"
+                )
+
+            msg += "\n"
+
+    else:
+        msg += "No strong Top 4 candidates found.\n"
+
+    # ---------------------------------------------------------
+    # AVOID OUTPUT
+    # ---------------------------------------------------------
 
     msg += "\n━━━━━━━━━━━━━━\n\n"
 
     msg += "🚫 AVOID / MESSY RACES\n"
-    msg += "Only races with trust of 55 or above are considered here.\n\n"
+    msg += (
+        "Only races with trust of 55 or above "
+        "are considered here.\n\n"
+    )
 
     if avoid_races:
-        for i, pick in enumerate(avoid_races, start=1):
+        for i, pick in enumerate(
+            avoid_races,
+            start=1,
+        ):
             msg += (
                 f"{i}. {format_leg(pick)} — "
                 f"{dominance_label(pick['margin'])}\n"
             )
-    else:
-        msg += "No obvious messy races from the accepted race list.\n"
 
-    msg += "\nUse /race Track RaceNumber for a full race breakdown."
+    else:
+        msg += (
+            "No obvious messy races "
+            "from the accepted race list.\n"
+        )
+
+    msg += (
+        "\nUse /race Track RaceNumber "
+        "for a full race breakdown."
+    )
 
     return msg[:4000]
 
